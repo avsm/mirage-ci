@@ -4,7 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(** Build a Dockerfile and return its SHA256 image tag *)
+(** DataKitCI module to build a Dockerfile image *)
 
 open DataKitCI
 
@@ -12,9 +12,10 @@ type t
 (** [t] is the state of a [Docker_build] instance *)
 
 type image = {
-  tag: string;
-  sha256: string;
+  tag: string;     (* textual tag tied to image *)
+  sha256: string;  (* SHA256 tag that uniquely identifies this image *)
 }
+(** [image] has the metadata for a locally built Docker image *)
 
 val config : logs:Live_log.manager -> label:string -> pool:Monitored_pool.t -> timeout:float -> t
 (** [config ~logs ~label ~pool ~timeout] will configure a Docker builder to build

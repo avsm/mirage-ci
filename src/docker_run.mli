@@ -4,7 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(** Run a Docker image and return the output *)
+(** DataKitCI module to run a Docker image and capture output *)
 
 open DataKitCI
 

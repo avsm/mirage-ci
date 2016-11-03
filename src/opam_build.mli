@@ -4,9 +4,11 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
+(** DataKitCI module to generate a Docker from an OPAM PR *)
 open DataKitCI
 
 type t
+(* [t] is the state of an Opam_build instance *)
 
 type key = {
   package: string;
@@ -16,8 +18,16 @@ type key = {
   remote_git_rev: string;
   extra_remotes: (ProjectID.t * string * Github_hooks.Commit.t) list;
 }
+(** [key] captures all the parameters necessary for a reproducible Opam build *)
+
 val config : logs:Live_log.manager -> label:string -> t
+(** [config ~logs ~label t] will configure an [Opam_build] instance to generate
+  Dockerfiles from {!key} parameters. *)
+
 val run : t -> key -> Dockerfile.t Term.t
+(** [run t key] will result in a DataKitCI {!Term.t} that will generate
+  a {!Dockerfile.t} that can be built using a {!Docker_build.t} instance
+  into a concrete image. *)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

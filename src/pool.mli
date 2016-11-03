@@ -4,11 +4,15 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
+(** Resource pools of worker instances for DataKitCI jobs *)
+
 open Astring
 
 type t
+(** [t] is the state of the worker pool *)
 
 val create : unit -> t
+(** [create  ()] will costruct a new worker pool that starts empty. *)
 
 val add_worker : t -> Worker.t -> unit
 (** [add_worker t worker] add new [worker] to the free pool. *)
