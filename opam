@@ -1,0 +1,19 @@
+opam-version: "1.2"
+maintainer: "Anil Madhavapeddy <anil@recoil.org>"
+authors: ["Anil Madhavapeddy" "Thomas Gazagnaire" "Thomas Leonard" "Dave Tucker" ]
+homepage: "https://github.com/avsm/mirage-ci"
+doc: "http://docs.mirage.io/mirage-ci/"
+license: "ISC"
+dev-repo: "https://github.com/avsm/mirage-ci.git"
+bug-reports: "https://github.com/avsm/mirage-ci/issues"
+tags: [ "org:mirage" "org:ocamlabs"]
+available: [ ocaml-version >= "4.02.3"]
+depends: [
+  "ocamlfind" {build}
+  "ocamlbuild" {build}
+  "topkg" {build}
+  "dockerfile" {>="1.7.0"}
+  "datakit-ci"
+]
+depopts: []
+build: [ "ocaml" "pkg/pkg.ml" "build" "--pinned" pinned "--tests" "false" ]

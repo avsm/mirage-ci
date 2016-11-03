@@ -1,0 +1,5 @@
+true : annot, bin_annot, safe_string, package(bytes), debug
+true : package(datakit-ci dockerfile.opam)
+
+<src> : include
+<test> : include
