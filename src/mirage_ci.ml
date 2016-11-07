@@ -168,6 +168,7 @@ end
 let web_config =
   Web.config
     ~name:"mirage-ci"
+    ~public:true
     ?state_repo:None
     ()
 
