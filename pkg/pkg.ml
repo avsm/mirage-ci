@@ -5,4 +5,7 @@ open Topkg
 
 let () =
   Pkg.describe "mirage_ci" @@ fun c ->
-  Ok [ Pkg.bin "src/mirage_ci" ]
+  Ok [
+    Pkg.lib "src/mirage-ci.mllib";
+    Pkg.bin "src-bin/mirageCI" 
+  ]
