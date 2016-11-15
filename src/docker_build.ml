@@ -65,7 +65,7 @@ module Docker_builder = struct
     let dockerfile_str = Dockerfile.string_of_t dockerfile in
     let digest = Digest.string dockerfile_str |> Digest.to_hex in
     let output = Live_log.write log in
-    let tag = t.label ^ ":" ^ digest in
+    let tag = Fmt.strf "%s:%s" t.label digest in
     Utils.with_tmpdir (fun tmp_dir ->
       Dockerfile_distro.generate_dockerfile ~crunch:true tmp_dir dockerfile;
       let fname = tmp_dir ^ "/Dockerfile" in
