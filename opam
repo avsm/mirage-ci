@@ -12,9 +12,16 @@ depends: [
   "ocamlfind" {build}
   "ocamlbuild" {build}
   "topkg" {build}
+  "ppx_sexp_conv" {build}
   "dockerfile" {>="1.7.0"}
   "datakit-ci"
   "toml"
+  "fpath"
+  "asetmap"
+  "bos"
+  "cmdliner"
+  "rresult"
+  "sexplib"
 ]
 depopts: []
 build: [ "ocaml" "pkg/pkg.ml" "build" "--pinned" pinned "--tests" "false" ]
