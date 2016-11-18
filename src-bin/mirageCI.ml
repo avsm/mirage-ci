@@ -168,7 +168,8 @@ end
 let web_config =
   Web.config
     ~name:"mirage-ci"
-    ~public:true
+    ~can_read:ACL.(everyone)
+    ~can_build:ACL.(github_org "mirage")
     ?state_repo:None
     ()
 

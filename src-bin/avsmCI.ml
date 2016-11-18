@@ -120,7 +120,8 @@ end
 let web_config =
   Web.config
     ~name:"avsm-ci"
-    ~public:true
+    ~can_read:ACL.(everyone)
+    ~can_build:ACL.(github_org "avsm")
     ~state_repo: (Uri.of_string "https://github.com/avsm/avsm-ci.logs")
     ()
 
