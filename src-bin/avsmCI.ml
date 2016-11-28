@@ -23,13 +23,8 @@ module Builder = struct
 
   let pool = Monitored_pool.create "docker" 2
 
-  let project_of_target = function
-    | `PR pr -> Github_hooks.PR.project pr
-    | `Ref rf -> Github_hooks.Ref.project rf
-
   (* XXX TODO temporary until we can query package list automatically *)
-  let package_of_repo target =
-    let project = project_of_target target in
+  let package_of_repo (project,_target) =
     match Fmt.strf "%a" ProjectID.pp project with
     | "avsm/ocaml-dockerfile" -> "dockerfile"
     | _ -> failwith "TODO package_of_repo"
@@ -51,8 +46,7 @@ module Builder = struct
         x :: l
 
   (* base building *)
-  let build ?(extra_remotes=[]) distro ocaml_version = 
-    Term.target >>= fun target ->
+  let build ?(extra_remotes=[]) target distro ocaml_version = 
     let package = package_of_repo target in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     term_map_s (fun (repo,branch) ->
@@ -60,6 +54,7 @@ module Builder = struct
       Term.return (repo,branch,commit)
     ) extra_remotes >>= fun extra_remotes ->
     let remote_git_rev = Github_hooks.Commit.hash opam_repo_commit in
+    Term.github_target target >>= fun target ->
     Opam_build.(run opam_t {package;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run docker_t
 
@@ -73,12 +68,12 @@ module Builder = struct
     in
     label, term
 
-  let run_tests ?extra_remotes test =
+  let run_tests ?extra_remotes target test =
     let open Datakit_toml in
     let tests =
       List.map (fun ov ->
         List.map (fun distro ->
-          build distro ov
+          build target distro ov
         ) test.distros
       ) test.ocamlv |> List.flatten
     in
@@ -96,22 +91,20 @@ module Builder = struct
     in
     proc ([],[]) tests
 
-  let run_toml () =
-    DKCI_git.fetch_head git_t >>= fun local_head ->
+  let run_toml () target =
+    DKCI_git.fetch_head git_t target >>= fun local_head ->
     Toml_reader.run toml_t local_head >>= fun tests ->
-    Term.target >>= fun target ->
-    match target with
+    match DataKitCI.Target.Full.id target with
     |`Ref r -> begin
-       let ref = Github_hooks.Ref.name r |> Datakit_path.unwrap in
+       let ref = Datakit_path.unwrap r in
        match Datakit_toml.assoc ref tests with
        | None -> Term.return "Tests skipped"
-       | Some t ->
-          run_tests t
+       | Some t -> run_tests target t
     end
     | _ -> Term.return "Skipped"
 
   let tests = [
-    Config.project ~id:"avsm/ocaml-dockerfile" ["avsmCI", run_toml ()]
+    Config.project ~id:"avsm/ocaml-dockerfile" (run_toml ())
   ]
 end
 

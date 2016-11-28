@@ -25,13 +25,8 @@ module Builder = struct
 
   let pool = Monitored_pool.create "docker" 35
 
-  let project_of_target = function
-    | `PR pr -> Github_hooks.PR.project pr
-    | `Ref rf -> Github_hooks.Ref.project rf
-
   (* XXX TODO temporary until we can query package list automatically *)
-  let package_of_repo target =
-    let project = project_of_target target in
+  let package_of_repo (project, _target) =
     match Fmt.strf "%a" ProjectID.pp project with
     | "mirage/ocaml-cohttp" -> "cohttp"
     | "mirage/mirage" -> "mirage"
@@ -88,15 +83,13 @@ module Builder = struct
     let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd docker_run_t
 
-  let revdeps image =
-    Term.target >>= fun target ->
+  let revdeps target image =
     package_of_repo target |>
     calculate_revdeps image >>=
     build_revdeps image
 
   (* base building *)
-  let build ?(extra_remotes=[]) distro ocaml_version = 
-    Term.target >>= fun target ->
+  let build ?(extra_remotes=[]) target distro ocaml_version = 
     let package = package_of_repo target in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     term_map_s (fun (repo,branch) ->
@@ -104,6 +97,7 @@ module Builder = struct
       Term.return (repo,branch,commit)
     ) extra_remotes >>= fun extra_remotes ->
     let remote_git_rev = Github_hooks.Commit.hash opam_repo_commit in
+    Term.github_target target >>= fun target ->
     Opam_build.(run opam_t {package;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run docker_t
 
@@ -125,12 +119,12 @@ module Builder = struct
 
   let (>>?=) dep next = dep >>~= fun _ -> next
 
-  let run_phases ?(extra_remotes=[]) () =
-    let build = build ~extra_remotes in
+  let run_phases ?(extra_remotes=[]) () target =
+    let build = build ~extra_remotes target in
     (* phase 1 *)
     let alpine = build "alpine-3.4" primary_ocaml_version in
     (* phase 1 revdeps *)
-    let alpine_revdeps = alpine >>~= revdeps in
+    let alpine_revdeps = alpine >>~= revdeps target in
     (* phase 1 compiler variants *)
     let versions =
       List.map (fun (oc,allow_fail) ->

@@ -75,6 +75,8 @@ module Opam_builder = struct
     | `PR pr -> Printf.sprintf "pull/%d/head" (Github_hooks.PR.id pr)
     | `Ref r -> Github_hooks.Ref.name r |> Datakit_path.to_hum
 
+  let name t = "opam:" ^ t.label
+
   let title t {target;package;distro;ocaml_version;remote_git_rev;extra_remotes} =
     let id = id_of_target target in
     let remotes =

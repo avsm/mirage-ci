@@ -27,13 +27,6 @@ type image = {
   sha256: string;
 }
 
-let string_of_exit_status e =
-  let open Unix in
-  match e with
-  | WEXITED c -> Fmt.strf "exit code %d" c
-  | WSIGNALED s -> Fmt.strf "signal %d" s
-  | WSTOPPED s -> Fmt.strf "stopped %d" s
-
 module Docker_builder = struct
   type t = {
     label: string;
@@ -43,15 +36,17 @@ module Docker_builder = struct
 
   module Key = Dockerfile_key
 
-  type context = NoContext
+  type context = job_id
   type value = image
+
+  let name t = "docker-build:" ^ t.label
 
   let title _t dockerfile =
     digest_of_dockerfile dockerfile |>
     Fmt.strf "Building %s"
 
-  let run_long_cmd ~switch t fn =
-    Monitored_pool.use ~reason:"docker build" t.pool (fun () ->
+  let run_long_cmd ~switch t job_id fn =
+    Monitored_pool.use ~label:"docker build" t.pool job_id (fun () ->
       Utils.with_timeout ~switch t.timeout fn
     )
 
@@ -61,33 +56,26 @@ module Docker_builder = struct
   | Unix.WSIGNALED x -> Utils.failf "Signal %d" x
   | Unix.WSTOPPED x -> Utils.failf "Stopped %d" x
 
-  let generate t ~switch ~log trans NoContext dockerfile =
+  let generate t ~switch ~log trans job_id dockerfile =
     let dockerfile_str = Dockerfile.string_of_t dockerfile in
     let digest = Digest.string dockerfile_str |> Digest.to_hex in
     let output = Live_log.write log in
-    let tag = Fmt.strf "%s:%s" t.label digest in
+    let tag = t.label ^ ":" ^ digest in
     Utils.with_tmpdir (fun tmp_dir ->
       Dockerfile_distro.generate_dockerfile ~crunch:true tmp_dir dockerfile;
       let fname = tmp_dir ^ "/Dockerfile" in
       let builton = string_of_float (Unix.gettimeofday ()) in
       let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
-      let output_build_buf = Buffer.create 1024 in
-      let output_log s = Buffer.add_string output_build_buf s in
-      run_long_cmd ~switch t (fun switch ->
-        let start_time = Unix.gettimeofday () in
+      run_long_cmd ~switch t job_id (fun switch ->
         let cmd = Printf.sprintf "docker build %s -t %s --no-cache --rm --force-rm - < %s" label tag fname in
-        Process.run_with_exit_status ~switch ~output:output_log ("", [|"sh";"-c";cmd|]) >>= fun exit_status ->
-        let end_time = Unix.gettimeofday () in
+        Process.run_with_exit_status ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun exit_status ->
         check_docker_status exit_status;
-        output (Fmt.strf "Finished build in %d seconds with %s, and stored in value/build.log" (int_of_float (end_time -. start_time)) (string_of_exit_status exit_status));
         let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
         let images_output = Buffer.create 1024 in
         Process.run ~switch ~output:(Buffer.add_string images_output) ("",[|"sh";"-c";cmd|]) >|= fun () ->
         Buffer.contents images_output |> fun sha256 -> String.trim sha256
       ) >>= fun sha256 ->
       let open Utils in
-      let buf_log = Buffer.contents output_build_buf in
-      DK.Transaction.create_or_replace_file trans (Cache.Path.value / "build.log") (Cstruct.of_string buf_log) >>*= fun () ->
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "sha256") (Cstruct.of_string sha256) >>*= fun () ->
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "tag") (Cstruct.of_string tag) >>*= fun () ->
       output (Fmt.strf "Recorded container with tag %s (%s)" tag sha256);
@@ -114,7 +102,10 @@ let config ~logs ~label ~pool ~timeout =
   Docker_build_cache.create ~logs { Docker_builder.label; pool; timeout }
 
 let run config dfile =
-  Docker_build_cache.term config Docker_builder.NoContext dfile
+  let open! Term.Infix in
+  Term.job_id >>= fun job_id ->
+  Docker_build_cache.term config job_id dfile
+
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
