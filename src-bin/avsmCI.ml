@@ -92,16 +92,17 @@ module Builder = struct
     proc ([],[]) tests
 
   let run_toml () target =
-    DKCI_git.fetch_head git_t target >>= fun local_head ->
-    Toml_reader.run toml_t local_head >>= fun tests ->
-    match DataKitCI.Target.Full.id target with
+    let t = match DataKitCI.Target.Full.id target with
     |`Ref r -> begin
+       DKCI_git.fetch_head git_t target >>= fun local_head ->
+       Toml_reader.run toml_t local_head >>= fun tests ->
        let ref = Datakit_path.unwrap r in
        match Datakit_toml.assoc ref tests with
-       | None -> Term.return "Tests skipped"
+       | None -> Term.return "skipped"
        | Some t -> run_tests target t
     end
-    | _ -> Term.return "Skipped"
+    | _ -> Term.return "skipped" in
+    ["Build", t]
 
   let tests = [
     Config.project ~id:"avsm/ocaml-dockerfile" (run_toml ())

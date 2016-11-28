@@ -38,13 +38,15 @@ module Toml_builder = struct
   }
 
   module Key = Git_key
-  type context = NoContext
+  type context = job_id
   type value = Datakit_toml.t list
+
+  let name t = "toml-build:" ^ t.label
 
   let title t commit = DKCI_git.Commit.hash commit
 
-  let generate {label;git_t;toml_filename} ~switch:_ ~log trans NoContext commit =
-    DKCI_git.with_checkout ~log ~reason:"Reading toml file" commit
+  let generate {label;git_t;toml_filename} ~switch:_ ~log trans job_id commit =
+    DKCI_git.with_checkout ~job_id ~log commit
      (fun file ->
        let fname = Fmt.strf "%s/%s" file toml_filename in
        Live_log.write log (Fmt.strf "reading file from %s\n" fname);
@@ -79,7 +81,9 @@ let config ~logs ~label ~toml_filename ~git_t =
   Toml_cache.create ~logs { Toml_builder.label; toml_filename; git_t }
 
 let run config commit =
-  Toml_cache.term config Toml_builder.NoContext commit
+  let open! Term.Infix in
+  Term.job_id >>= fun job_id ->
+  Toml_cache.term config job_id commit
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
