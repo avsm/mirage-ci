@@ -27,16 +27,18 @@ module Docker_runner = struct
 
   module Key = Docker_run_key
 
-  type context = NoContext
+  type context = job_id
   type value = string
+
+  let name t = "docker-run:" ^ t.label
 
   let title _t (img,cmd) =
     Fmt.strf "docker run %s %s" img (String.concat ~sep:" " cmd)
 
-  let generate t ~switch ~log trans NoContext (img,cmd) =
+  let generate t ~switch ~log trans job_id (img,cmd) =
     let tee outputs s = List.iter (fun o -> o s) outputs in
     Live_log.log log "Waiting for free pool slot to run";
-    Monitored_pool.use ~reason:"docker run" t.pool (fun () ->
+    Monitored_pool.use ~label:"docker run" t.pool job_id (fun () ->
       Live_log.log log "Pool slot obtained, starting run";
       Utils.with_timeout ~switch t.timeout (fun switch ->
         Live_log.log log "docker run %s %s" img (String.concat ~sep:" " cmd);
@@ -69,7 +71,9 @@ let config ~logs ~label ~pool ~timeout =
   Docker_run_cache.create ~logs { Docker_runner.label; pool; timeout }
 
 let run ~tag ~cmd config =
-  Docker_run_cache.term config Docker_runner.NoContext (tag,cmd)
+  let open! Term.Infix in
+  Term.job_id >>= fun job_id ->
+  Docker_run_cache.term config job_id (tag,cmd)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
