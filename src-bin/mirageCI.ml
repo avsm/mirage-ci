@@ -23,7 +23,7 @@ module Builder = struct
   let primary_ocaml_version = "4.03.0"
   let compiler_variants = [("4.02.3",false);("4.03.0_flambda",false);("4.04.0",true)]
 
-  let pool = Monitored_pool.create "docker" 35
+  let pool = Monitored_pool.create "docker" 5
 
   (* XXX TODO temporary until we can query package list automatically *)
   let package_of_repo (project, _target) =
@@ -32,7 +32,7 @@ module Builder = struct
     | "mirage/mirage" -> "mirage"
     | _ -> failwith "TODO package_of_repo"
 
-  let label = "mirageci2" 
+  let label = "mir" 
   let docker_t = Docker_build.config ~logs ~label ~pool ~timeout:one_hour
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
   let opam_t = Opam_build.config ~logs ~label
@@ -111,49 +111,68 @@ module Builder = struct
     in
     label, term
 
-  let (>>~=) dep next =
-    Term.state dep >>= function
-    | Error (`Pending _) -> Term.pending "Blocked"
-    | Error (`Failure _) -> Term.fail "Skipped"
-    | Ok r -> next r
-
-  let (>>?=) dep next = dep >>~= fun _ -> next
+  let after t =
+    Term.wait_for ~while_pending:"waiting" ~on_failure:"depfail" t |>
+    Term.without_logs
 
   let run_phases ?(extra_remotes=[]) () target =
     let build = build ~extra_remotes target in
     (* phase 1 *)
     let alpine = build "alpine-3.4" primary_ocaml_version in
-    (* phase 1 revdeps *)
-    let alpine_revdeps = alpine >>~= revdeps target in
-    (* phase 1 compiler variants *)
-    let versions =
+    let phase1 = alpine in
+    (* phase 2 revdeps *)
+    let alpine_revdeps =
+      Term.without_logs phase1 >>=
+      revdeps target in
+    let phase2 =
+      after phase1 >>= fun () ->
+      alpine_revdeps in
+    (* phase 3 compiler variants *)
+    let compiler_versions =
       List.map (fun (oc,allow_fail) ->
-        let t = alpine >>?= build "alpine-3.4" oc in
-        report ~allow_fail ("OCaml "^oc) t
+        build "alpine-3.4" oc |>
+        report ~allow_fail ("OCaml "^oc)
       ) compiler_variants in
-    (* phase 2 *)
-    let debian = alpine >>?= build "debian-stable" primary_ocaml_version in
-    let ubuntu1604 = alpine >>?= build "ubuntu-16.04" primary_ocaml_version in
-    let centos7 = alpine >>?= build "centos-7" primary_ocaml_version in
-    let phase2 = debian >>= fun _ -> ubuntu1604 >>= fun _ -> centos7 in
-    (* phase 3 *)
-    let debiant = phase2 >>?= build "debian-testing" primary_ocaml_version in
-    let opensuse = phase2 >>?= build "opensuse-42.1" primary_ocaml_version in
-    let fedora24 = phase2 >>?= build "fedora-24" primary_ocaml_version in
-    (* test set *)
-    [ report "Alpine 3.4" alpine;
-      report "Debian Stable" debian;
-      report "CentOS 7" centos7;
-      report "Ubuntu 16.04" ubuntu1604;
-      report "Debian Testing" debiant;
-      report "OpenSUSE 42.1" opensuse;
-      report "Fedora 24" fedora24;
-      ("Revdeps",alpine_revdeps);
-    ] @ versions
+    let phase3 =
+      after phase2 >>= fun () ->
+      Term.wait_for_all compiler_versions in
+    (* phase 4 *)
+    let debian = build "debian-stable" primary_ocaml_version in
+    let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
+    let centos7 = build "centos-7" primary_ocaml_version in
+    let phase4 =
+      after phase2 >>= fun () ->
+      Term.wait_for_all [
+        "Debian Stable", debian;
+        "Ubuntu 16.04", ubuntu1604;
+        "CentOS7", centos7 ] in
+    (* phase 5 *)
+    let debiant = build "debian-testing" primary_ocaml_version in
+    let debianu = build "debian-unstable" primary_ocaml_version in
+    let opensuse = build "opensuse-42.1" primary_ocaml_version in
+    let fedora24 = build "fedora-24" primary_ocaml_version in
+    let phase5 =
+      after phase3 >>= fun () ->
+      Term.wait_for_all [
+        "Debian Testing", debiant;
+        "Debian Unstable", debianu;
+        "OpenSUSE 42.1", opensuse;
+        "Fedora 24", fedora24 ]
+    in
+    let all_tests = 
+      [ report "1 Build" phase1;
+        report "2 Revdeps" phase2;
+        report "3 Compilers" phase3;
+        report "4 Common Distros" phase4;
+        report "5 All Distros" phase5;
+      ] in
+    match DataKitCI.Target.Full.id target with
+    |`Ref r when Datakit_path.to_hum r = "heads/master" -> all_tests
+    |`PR _  -> all_tests
+    | _ -> []
 
   let tests = [
-    Config.project ~id:"mirage/ocaml-cohttp" (run_phases ());
-    Config.project ~id:"mirage/mirage"       (run_phases ~extra_remotes:[mirage_dev_remote] ());
+    Config.project ~id:"mirage/mirage" (run_phases ~extra_remotes:[mirage_dev_remote] ());
   ]
 end
 
@@ -163,8 +182,8 @@ let web_config =
   Web.config
     ~name:"mirage-ci"
     ~can_read:ACL.(everyone)
-    ~can_build:ACL.(github_org "mirage")
-    ?state_repo:None
+    ~can_build:ACL.(username "admin")
+    ~state_repo:(Uri.of_string "https://github.com/mirage/mirage-ci.logs")
     ()
 
 let () =
