@@ -1,0 +1,32 @@
+version: '2.1'
+services:
+  ci:
+    restart: always
+    build: .
+    command: --metadata-store tcp:datakit:5640 --web-ui=https://ci.mirage.io:8443/
+    ports:
+     - "443:8443"
+    volumes:
+     - ./data/ci/repos:/data/repos
+     - ./data/ci/secrets:/secrets
+     - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+     - datakit
+  datakit:
+    restart: always
+    image: docker/datakit
+    user: "root"
+    volumes:
+      - ./data/datakit/data:/data
+      - ./data/datakit/_ssh:/root/.ssh
+    command: --git /data --listen-9p tcp://0.0.0.0:5640 --auto-push git@github.com:mirage/mirage-ci.logs
+  bridge:
+    restart: always
+    image: docker/datakit:github
+    command: --datakit tcp://datakit:5640 --no-listen -v -c "*:r,status[ci/datakit]:x,webhook:rw" --webhook http://ci.mirage.io:8100
+    ports:
+     - "8100:8100"
+    volumes:
+      - ./data/bridge/_github:/root/.github
+    depends_on:
+     - datakit
