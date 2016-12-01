@@ -10,7 +10,7 @@ RUN opam depext -uivy -j 4 datakit-ci
 ADD . /home/opam/src
 RUN sudo chown -R opam /home/opam/src
 RUN opam pin add -n mirage-ci /home/opam/src
-RUN opam depext -ivy -j 4 mirage-ci
+RUN opam install -vy -j 4 mirage-ci
 USER root
 ENTRYPOINT ["/home/opam/.opam/4.04.0/bin/mirageCI"]
 CMD []
