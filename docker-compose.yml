@@ -3,7 +3,7 @@ services:
   ci:
     restart: always
     build: .
-    command: --metadata-store tcp:datakit:5640 --web-ui=https://ci.mirage.io:8443/
+    command: --metadata-store tcp:datakit:5640 --web-ui=https://ci.mirage.io/
     ports:
      - "443:8443"
     volumes:
