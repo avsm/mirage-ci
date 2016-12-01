@@ -50,35 +50,24 @@ module Builder = struct
     let open !Dockerfile in
     let dfile =
       from image.Docker_build.sha256 @@
-      run "opam depext -uiyv -j 2 %s" pkg
-    in
+      run "opam depext -uiyv -j 2 %s" pkg in
     let hum = Fmt.strf "opam install %s" pkg in
     Docker_build.run docker_t ~hum dfile
 
+  let ignore_failure ~on_fail t =
+   Term.state t >>= function
+   | Error (`Pending m) -> Term.pending "%s" m
+   | Error (`Failure m) -> Term.return (on_fail m)
+   | Ok m -> Term.return m
+
   let build_revdeps image pkgs =
-    String.cuts ~empty:false ~sep:"\n" pkgs |> fun pkgs ->
-    Term.list_map_p (fun pkg ->
-      build_revdep image pkg |>
-      Term.state >>= function
-      | Error (`Pending _) -> Term.return (`Pending pkg)
-      | Error (`Failure _) -> Term.return (`Failure pkg)
-      | Ok _               -> Term.return (`Ok pkg)
-    ) pkgs >>= fun results ->
-    List.fold_left (fun (succ,fail,pending) r ->
-      match r with
-      | `Pending pkg -> succ, fail, (pkg::pending)
-      | `Failure pkg -> succ, (pkg::fail), pending
-      | `Ok pkg      -> (pkg::succ), fail, pending
-    ) ([],[],[]) results |> fun (succ,fail,pending) ->
-    let status label rs =
-      match rs with
-      | [] -> ""
-      | rs -> Fmt.strf "%s:%d " label (List.length rs)
-    in
-    let status = Fmt.strf "%s%s%s" (status "Ok" succ) (status "Err" fail) (status "Building" pending) in
-    match pending with
-    | [] -> Term.return status
-    | _ -> Term.pending "%s" status
+    String.cuts ~empty:false ~sep:"\n" pkgs |>
+    List.map (fun pkg ->
+      let t = build_revdep image pkg in
+      pkg, t
+    ) |>
+    Term.wait_for_all |>
+    ignore_failure ~on_fail:(fun _ -> ())
 
   let calculate_revdeps image pkg =
     let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
