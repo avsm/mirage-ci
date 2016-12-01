@@ -26,10 +26,10 @@ module Builder = struct
   let pool = Monitored_pool.create "docker" 5
 
   (* XXX TODO temporary until we can query package list automatically *)
-  let package_of_repo (project, _target) =
+  let packages_of_repo (project, _target) =
     match Fmt.strf "%a" ProjectID.pp project with
-    | "mirage/ocaml-cohttp" -> "cohttp"
-    | "mirage/mirage" -> "mirage"
+    | "mirage/ocaml-cohttp" -> ["cohttp"]
+    | "mirage/mirage" -> ["mirage";"mirage-types"]
     | _ -> failwith "TODO package_of_repo"
 
   let label = "mir" 
@@ -52,7 +52,8 @@ module Builder = struct
       from image.Docker_build.sha256 @@
       run "opam depext -uiyv -j 2 %s" pkg
     in
-    Docker_build.run docker_t dfile
+    let hum = Fmt.strf "opam install %s" pkg in
+    Docker_build.run docker_t ~hum dfile
 
   let build_revdeps image pkgs =
     String.cuts ~empty:false ~sep:"\n" pkgs |> fun pkgs ->
@@ -84,13 +85,16 @@ module Builder = struct
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd docker_run_t
 
   let revdeps target image =
-    package_of_repo target |>
-    calculate_revdeps image >>=
-    build_revdeps image
+    packages_of_repo target |>
+    List.map (fun pkg ->
+      let t = calculate_revdeps image pkg >>= build_revdeps image in
+      let l = Fmt.strf "revdeps:%s" pkg in
+      l, t) |>
+    Term.wait_for_all
 
   (* base building *)
   let build ?(extra_remotes=[]) target distro ocaml_version = 
-    let package = package_of_repo target in
+    let packages = packages_of_repo target in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     term_map_s (fun (repo,branch) ->
       Term.branch_head repo branch >>= fun commit ->
@@ -98,8 +102,9 @@ module Builder = struct
     ) extra_remotes >>= fun extra_remotes ->
     let remote_git_rev = Github_hooks.Commit.hash opam_repo_commit in
     Term.github_target target >>= fun target ->
-    Opam_build.(run opam_t {package;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
-    Docker_build.run docker_t
+    let hum = Fmt.(strf "opam install %a" (list ~sep:Format.pp_print_space string) packages) in
+    Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
+    Docker_build.run docker_t ~hum
 
   let report ?(allow_fail=false) label img =
     let term =
@@ -141,7 +146,7 @@ module Builder = struct
     let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
     let centos7 = build "centos-7" primary_ocaml_version in
     let phase4 =
-      after phase2 >>= fun () ->
+      after phase3 >>= fun () ->
       Term.wait_for_all [
         "Debian Stable", debian;
         "Ubuntu 16.04", ubuntu1604;
@@ -152,7 +157,7 @@ module Builder = struct
     let opensuse = build "opensuse-42.1" primary_ocaml_version in
     let fedora24 = build "fedora-24" primary_ocaml_version in
     let phase5 =
-      after phase3 >>= fun () ->
+      after phase4 >>= fun () ->
       Term.wait_for_all [
         "Debian Testing", debiant;
         "Debian Unstable", debianu;

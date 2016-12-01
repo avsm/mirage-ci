@@ -24,16 +24,16 @@ module Builder = struct
   let pool = Monitored_pool.create "docker" 2
 
   (* XXX TODO temporary until we can query package list automatically *)
-  let package_of_repo (project,_target) =
+  let packages_of_repo (project,_target) =
     match Fmt.strf "%a" ProjectID.pp project with
-    | "avsm/ocaml-dockerfile" -> "dockerfile"
+    | "avsm/ocaml-dockerfile" -> ["dockerfile"]
     | _ -> failwith "TODO package_of_repo"
 
   let label = "mirage1" 
   let docker_t = Docker_build.config ~logs ~label ~pool ~timeout:one_hour
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
   let opam_t = Opam_build.config ~logs ~label
-  let git_mk user repo = DKCI_git.connect ~logs ~dir:("/Users/avsm/src/git/avsm/mirage-ci/_checkouts"^"/"^user^"/"^repo)
+  let git_mk user repo = DKCI_git.connect ~logs ~dir:("/home/avsm/mirage-ci/_checkouts"^"/"^user^"/"^repo)
   let git_t = git_mk "avsm" "ocaml-dockerfile"
   let toml_t = Toml_reader.config ~logs ~label ~git_t ~toml_filename:".datakit.toml"
 
@@ -47,16 +47,17 @@ module Builder = struct
 
   (* base building *)
   let build ?(extra_remotes=[]) target distro ocaml_version = 
-    let package = package_of_repo target in
+    let packages = packages_of_repo target in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     term_map_s (fun (repo,branch) ->
       Term.branch_head repo branch >>= fun commit ->
       Term.return (repo,branch,commit)
     ) extra_remotes >>= fun extra_remotes ->
     let remote_git_rev = Github_hooks.Commit.hash opam_repo_commit in
-    Term.github_target target >>= fun target ->
-    Opam_build.(run opam_t {package;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
-    Docker_build.run docker_t
+    Term.github_target target >>= fun target -> 
+    let hum = Fmt.(strf "opam install %a" (list ~sep:Format.pp_print_space string) packages) in
+    Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
+    Docker_build.run ~hum docker_t
 
   let report ?(allow_fail=false) label img =
     let term =
@@ -115,7 +116,7 @@ let web_config =
   Web.config
     ~name:"avsm-ci"
     ~can_read:ACL.(everyone)
-    ~can_build:ACL.(github_org "avsm")
+    ~can_build:ACL.(username "admin")
     ~state_repo: (Uri.of_string "https://github.com/avsm/avsm-ci.logs")
     ()
 
