@@ -18,13 +18,14 @@ let digest_of_dockerfile d =
   Digest.string dockerfile_str |> Digest.to_hex
 
 module Dockerfile_key = struct
-  type t = Dockerfile.t
+  type t = Dockerfile.t * string
   let compare = Pervasives.compare
 end
 
 type image = {
   tag: string;
   sha256: string;
+  hum: string;
 }
 
 module Docker_builder = struct
@@ -41,9 +42,9 @@ module Docker_builder = struct
 
   let name t = "docker-build:" ^ t.label
 
-  let title _t dockerfile =
-    digest_of_dockerfile dockerfile |>
-    Fmt.strf "Building %s"
+  let title _t (dockerfile,hum) =
+    digest_of_dockerfile dockerfile |> fun digest ->
+    Fmt.strf "Building %s (%s)" hum (String.with_range ~len:6 digest)
 
   let run_long_cmd ~switch t job_id fn =
     Monitored_pool.use ~label:"docker build" t.pool job_id (fun () ->
@@ -56,7 +57,7 @@ module Docker_builder = struct
   | Unix.WSIGNALED x -> Utils.failf "Signal %d" x
   | Unix.WSTOPPED x -> Utils.failf "Stopped %d" x
 
-  let generate t ~switch ~log trans job_id dockerfile =
+  let generate t ~switch ~log trans job_id (dockerfile,hum) =
     let dockerfile_str = Dockerfile.string_of_t dockerfile in
     let digest = Digest.string dockerfile_str |> Digest.to_hex in
     let output = Live_log.write log in
@@ -78,11 +79,12 @@ module Docker_builder = struct
       let open Utils in
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "sha256") (Cstruct.of_string sha256) >>*= fun () ->
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "tag") (Cstruct.of_string tag) >>*= fun () ->
+      DK.Transaction.create_or_replace_file trans (Cache.Path.value / "label") (Cstruct.of_string hum) >>*= fun () ->
       output (Fmt.strf "Recorded container with tag %s (%s)" tag sha256);
-      Lwt.return (Ok {sha256; tag} )
+      Lwt.return (Ok {sha256; tag; hum} )
     )
 
-  let branch _t dockerfile =
+  let branch _t (dockerfile,_) =
     digest_of_dockerfile dockerfile |>
     Fmt.strf "docker-build-%s"
 
@@ -90,9 +92,12 @@ module Docker_builder = struct
     let open Utils in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/sha256") >>*= fun sha256 ->
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/tag") >>*= fun tag ->
+    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/label") >>*= fun hum ->
     Lwt.return {
       sha256=String.trim (Cstruct.to_string sha256);
-      tag=String.trim (Cstruct.to_string tag) }
+      tag=String.trim (Cstruct.to_string tag);
+      hum=String.trim (Cstruct.to_string hum);
+    }
 end
  
 module Docker_build_cache = Cache.Make(Docker_builder)
@@ -101,10 +106,10 @@ type t = Docker_build_cache.t
 let config ~logs ~label ~pool ~timeout =
   Docker_build_cache.create ~logs { Docker_builder.label; pool; timeout }
 
-let run config dfile =
+let run config ~hum dfile =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  Docker_build_cache.term config job_id dfile
+  Docker_build_cache.term config job_id (dfile,hum)
 
 
 (*---------------------------------------------------------------------------

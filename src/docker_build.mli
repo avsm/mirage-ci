@@ -14,6 +14,7 @@ type t
 type image = {
   tag: string;     (* textual tag tied to image *)
   sha256: string;  (* SHA256 tag that uniquely identifies this image *)
+  hum: string;     (* human-readable description of Dockerfile *)
 }
 (** [image] has the metadata for a locally built Docker image *)
 
@@ -24,11 +25,12 @@ val config : logs:Live_log.manager -> label:string -> pool:Monitored_pool.t -> t
     of parallel builds allowed, and [timeout] is the length in seconds that
     a build can run for before being terminated. *)
 
-val run : t -> Dockerfile.t -> image Term.t
-(** [run t d] will build the [d] Dockerfile using the [t] builder, and return
+val run : t -> hum:string -> Dockerfile.t -> image Term.t
+(** [run t ~hum d] will build the [d] Dockerfile using the [t] builder, and return
     the SHA256 build hash of the resulting image.  The image will also be
     tagged as [label:digest] where [label] is configured as part of [t] and
-    [digest] is calculated via {!digest_of_dockerfile}.  *)
+    [digest] is calculated via {!digest_of_dockerfile}. [hum] is a human-readable
+    description of the Dockerfile for showing in the UI or status logs. *)
 
 val digest_of_dockerfile : Dockerfile.t -> string
 (** [digest_of_dockerfile d] will calculate a hex digest of the input Dockerfile. *)
