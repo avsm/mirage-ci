@@ -11,7 +11,7 @@ type t
 (* [t] is the state of an Opam_build instance *)
 
 type key = {
-  package: string;
+  packages: string list;
   target: [ `PR of Github_hooks.PR.t | `Ref of Github_hooks.Ref.t ];
   distro: string;
   ocaml_version: string;

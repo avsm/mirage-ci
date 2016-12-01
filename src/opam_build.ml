@@ -25,7 +25,7 @@ module Dockerfile_utils = struct
 end
 
 type key = {
-  package: string;
+  packages: string list;
   target: [`PR of Github_hooks.PR.t | `Ref of Github_hooks.Ref.t ];
   distro: string;
   ocaml_version: string;
@@ -77,7 +77,7 @@ module Opam_builder = struct
 
   let name t = "opam:" ^ t.label
 
-  let title t {target;package;distro;ocaml_version;remote_git_rev;extra_remotes} =
+  let title t {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
     let id = id_of_target target in
     let remotes =
       String.concat ~sep:":" (
@@ -86,21 +86,22 @@ module Opam_builder = struct
           (String.with_range ~len:6 (Github_hooks.Commit.hash com))
        ) extra_remotes)
       in
-    Fmt.strf "Dockerfile for %s %s:%s (%s/%s/opam-repo:%s:%s)"
-      package t.label id distro ocaml_version
+    Fmt.strf "Dockerfile %a %s:%s (%s/%s/opam-repo:%s:%s)"
+      Fmt.(list string) packages t.label id distro ocaml_version
       (String.with_range ~len:6 remote_git_rev) remotes
 
-  let generate _t ~switch:_ ~log trans NoContext {target;package;distro;ocaml_version;remote_git_rev;extra_remotes} =
+  let generate _t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
     let pid = project_of_target target in
     let commit = Github_hooks.Commit.hash (head_of_target target) in
     let remotes_ref = ref 0 in
     let dockerfile =
       let open! Dockerfile in
-    let remotes = List.map (fun (pid,_,commit) ->
-      incr remotes_ref;
-      run "opam remote add extra%d https://github.com/%s.git#%s"
+      let remotes = List.map (fun (pid,_,commit) ->
+        incr remotes_ref;
+        run "opam remote add extra%d https://github.com/%s.git#%s"
         !remotes_ref (Fmt.strf "%a" ProjectID.pp pid) (Github_hooks.Commit.hash commit)
-      ) extra_remotes in
+        ) extra_remotes in
+      let pins = List.map (run "opam pin add -n %s /home/opam/src") packages in
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
       workdir "/home/opam/opam-repository" @@
       run "git pull origin master" @@
@@ -110,29 +111,28 @@ module Opam_builder = struct
         pid.ProjectID.user pid.ProjectID.project @@
       workdir "/home/opam/src" @@
       run "git fetch origin %s:cibranch" (branch_of_target target) @@
-      run "git checkout %s" commit @@
-      run "opam pin add -n %s /home/opam/src" package @@
-      run "opam depext -uy %s" package @@
-      run "opam install -j 2 -vy %s" package
+      (run "git checkout %s" commit @@@ pins) @@
+      run "opam depext -uy %s" (String.concat ~sep:" " packages) @@
+      run "opam install -j 2 -vy %s" (String.concat ~sep:" " packages)
     in
     let open Utils in
     let output = Live_log.write log in
-    Live_log.log log "Building Dockerfile for installing %s (%s %s)" package distro ocaml_version;
+    Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list string)) packages distro ocaml_version;
     let data = Dockerfile_utils.to_cstruct dockerfile in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "Dockerfile.sexp") data >>*= fun () ->
     output (Dockerfile.string_of_t dockerfile);
     Lwt.return  (Ok dockerfile)
 
-  let branch t {target;package;distro;ocaml_version;remote_git_rev;extra_remotes}=
+  let branch t {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes}=
     let id = id_of_target target in
     let proj = project_of_target target in
     let commit = Github_hooks.Commit.hash (head_of_target target) in
     let extra = String.concat ~sep:":" 
        (List.map (fun (pid,_,commit) -> Fmt.strf "%a#%s"
         ProjectID.pp pid (Github_hooks.Commit.hash commit)) extra_remotes) in
-    Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s"
+    Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%s-%s-%s-%a"
       proj.ProjectID.user proj.ProjectID.project
-      t.label distro ocaml_version id commit remote_git_rev extra package |>
+      t.label distro ocaml_version id commit remote_git_rev extra (Fmt.(list string)) packages |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =
