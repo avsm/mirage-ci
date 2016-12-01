@@ -95,37 +95,32 @@ module Builder = struct
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run docker_t ~hum
 
-  let report ?(allow_fail=false) label img =
-    let term =
-      Term.state img >>= function
-      | Error (`Pending p) -> Term.pending "%s" p
-      | Error (`Failure f) when allow_fail -> Term.return (Fmt.strf "(Allowed failure) %s" f)
-      | Error (`Failure f) -> Term.fail "%s" f
-      | Ok _img            -> Term.return label
-    in
-    label, term
-
   let after t =
     Term.wait_for ~while_pending:"waiting" ~on_failure:"depfail" t |>
     Term.without_logs
+
+  let report ~order ~label t =
+    let l = Fmt.strf "%d %s" order label in
+    let t = t >>= fun _ -> Term.return label in
+    l, t
 
   let run_phases ?(extra_remotes=[]) () target =
     let build = build ~extra_remotes target in
     (* phase 1 *)
     let alpine = build "alpine-3.4" primary_ocaml_version in
-    let phase1 = alpine in
+    let phase1 = alpine >>= fun _ -> Term.return () in
     (* phase 2 revdeps *)
     let alpine_revdeps =
-      Term.without_logs phase1 >>=
+      Term.without_logs alpine >>=
       revdeps target in
     let phase2 =
       after phase1 >>= fun () ->
       alpine_revdeps in
     (* phase 3 compiler variants *)
     let compiler_versions =
-      List.map (fun (oc,allow_fail) ->
-        build "alpine-3.4" oc |>
-        report ~allow_fail ("OCaml "^oc)
+      List.map (fun oc ->
+        let t = build "alpine-3.4" oc in
+        ("OCaml "^oc), t
       ) compiler_variants in
     let phase3 =
       after phase2 >>= fun () ->
@@ -154,11 +149,11 @@ module Builder = struct
         "Fedora 24", fedora24 ]
     in
     let all_tests = 
-      [ report "1 Build" phase1;
-        report "2 Revdeps" phase2;
-        report "3 Compilers" phase3;
-        report "4 Common Distros" phase4;
-        report "5 All Distros" phase5;
+      [ report ~order:1 ~label:"Build" phase1;
+        report ~order:2 ~label:"Revdeps" phase2;
+        report ~order:3 ~label:"Compilers" phase3;
+        report ~order:4 ~label:"Common Distros" phase4;
+        report ~order:5 ~label:"All Distros" phase5;
       ] in
     match DataKitCI.Target.Full.id target with
     |`Ref r when Datakit_path.to_hum r = "heads/master" -> all_tests
