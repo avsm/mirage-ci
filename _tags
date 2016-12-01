@@ -5,3 +5,4 @@ true : package(ppx_sexp_conv)
 <src> : include
 <test> : include
 <_checkouts> : -traverse
+<data>: -traverse
