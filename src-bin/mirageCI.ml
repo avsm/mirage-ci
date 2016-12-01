@@ -20,8 +20,8 @@ module Builder = struct
   let mirage_dev_repo = ProjectID.v ~user:"mirage" ~project:"mirage-dev"
   let mirage_dev_branch = "master"
   let mirage_dev_remote = mirage_dev_repo, mirage_dev_branch
-  let primary_ocaml_version = "4.03.0"
-  let compiler_variants = [("4.02.3",false);("4.03.0_flambda",false);("4.04.0",true)]
+  let primary_ocaml_version = "4.04.0"
+  let compiler_variants = ["4.02.3";"4.03.0";"4.04.0_flambda"]
 
   let pool = Monitored_pool.create "docker" 5
 
