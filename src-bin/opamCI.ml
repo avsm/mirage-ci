@@ -31,7 +31,7 @@ module Builder = struct
     let open !Dockerfile in
     let dfile =
       from image.Docker_build.sha256 @@
-      run "opam depext -uiyv -j 2 %s" pkg in
+      run "opam depext -iyv -j 2 %s" pkg in
     let hum = Fmt.strf "opam install %s" pkg in
     Docker_build.run docker_t ~hum dfile
 
@@ -61,26 +61,29 @@ module Builder = struct
 
   let opam_build_all target =
     let distro = "ubuntu-16.04" in
-    let ocaml_version = "4.03.0" in
-    let base_dfile = 
+    let base_dfile ~ocaml_version = 
       let open Dockerfile in
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
       workdir "/home/opam/opam-repository" @@
       workdir "git pull origin master" @@
-      run "opam update"
+      run "opam update" @@
+      run "opam depext -uivy ocamlfind"
     in
-    let bulk_build =
-      Docker_build.run docker_t ~hum:"opam base" base_dfile
+    let bulk_build ~ocaml_version =
+      Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s" ocaml_version) (base_dfile ~ocaml_version)
       >>= fun img ->
       list_all_pkgs img
       >>= fun pkgs ->
       build_all_pkgs img pkgs
     in
     let all_tests = [
-      report ~order:1 ~label:"4.03.0" bulk_build
+      report ~order:1 ~label:"4.03.0" (bulk_build ~ocaml_version:"4.03.0");
+      report ~order:2 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
+      report ~order:3 ~label:"4.04.0_flambda" (bulk_build ~ocaml_version:"4.04.0_flambda");
+      report ~order:4 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
     ] in
     match DataKitCI.Target.Full.id target with
-    |`Ref r when Datakit_path.to_hum r = "heads/bulk" -> all_tests
+    |`Ref r when Datakit_path.to_hum r = "tags/bulk" -> all_tests
     | _ -> []
 
   let tests = [
