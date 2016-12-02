@@ -65,8 +65,9 @@ module Builder = struct
       let open Dockerfile in
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
       workdir "/home/opam/opam-repository" @@
-      workdir "git pull origin master" @@
+      run "git pull origin master" @@
       run "opam update" @@
+      run "opam admin make" @@
       run "opam depext -uivy ocamlfind"
     in
     let bulk_build ~ocaml_version =
@@ -79,8 +80,7 @@ module Builder = struct
     let all_tests = [
       report ~order:1 ~label:"4.03.0" (bulk_build ~ocaml_version:"4.03.0");
       report ~order:2 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
-      report ~order:3 ~label:"4.04.0_flambda" (bulk_build ~ocaml_version:"4.04.0_flambda");
-      report ~order:4 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
+      report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
     ] in
     match DataKitCI.Target.Full.id target with
     |`Ref r when Datakit_path.to_hum r = "tags/bulk" -> all_tests
