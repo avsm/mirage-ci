@@ -15,16 +15,14 @@ module Builder = struct
   open Term.Infix
 
   let one_hour = 60. *. 60.
-  let three_hours = one_hour *. 3.
+  let eight_hours = one_hour *. 8.
   let opam_repo = ProjectID.v ~user:"ocaml" ~project:"opam-repository"
-  let primary_ocaml_version = "4.04.0"
-  let compiler_variants = ["4.01.0";"4.02.3";"4.03.0";"4.04.0_flambda"]
 
   let pool = Monitored_pool.create "docker" 24
 
   let label = "ocaml" 
-  let docker_t = Docker_build.config ~logs ~label ~pool ~timeout:one_hour
-  let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
+  let docker_t = Docker_build.config ~logs ~label ~pool ~timeout:eight_hours
+  let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:eight_hours
   let opam_t = Opam_build.config ~logs ~label
 
   let build_opam_pkg image pkg =
