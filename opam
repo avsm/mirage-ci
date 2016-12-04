@@ -22,6 +22,7 @@ depends: [
   "cmdliner"
   "rresult"
   "sexplib"
+  "tls"
 ]
 depopts: []
 build: [ "ocaml" "pkg/pkg.ml" "build" "--pinned" pinned "--tests" "false" ]

@@ -68,7 +68,7 @@ module Docker_builder = struct
       let builton = string_of_float (Unix.gettimeofday ()) in
       let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
       run_long_cmd ~switch t job_id (fun switch ->
-        let cmd = Printf.sprintf "docker build %s -t %s --no-cache --rm --force-rm - < %s" label tag fname in
+        let cmd = Printf.sprintf "docker build %s --network mirageci_opam_build -t %s --no-cache --rm --force-rm - < %s" label tag fname in
         Process.run_with_exit_status ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun exit_status ->
         check_docker_status exit_status;
         let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 

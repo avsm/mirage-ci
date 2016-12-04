@@ -64,9 +64,9 @@ module Builder = struct
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
       workdir "/home/opam/opam-repository" @@
       run "git pull origin master" @@
+      run "opam repo set-url default http://opamarchive:8081" @@
       run "opam update" @@
-      run "opam admin make" @@
-      run "opam depext -uivy ocamlfind"
+      run "opam depext -uivy ocamlfind ocamlbuild camlp4"
     in
     let bulk_build ~ocaml_version =
       Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s" ocaml_version) (base_dfile ~ocaml_version)
