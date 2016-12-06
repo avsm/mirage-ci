@@ -59,17 +59,20 @@ module Builder = struct
 
   let opam_build_all target =
     let distro = "ubuntu-16.04" in
-    let base_dfile ~ocaml_version = 
+    let base_dfile ~ocaml_version ~git_rev = 
       let open Dockerfile in
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
       workdir "/home/opam/opam-repository" @@
       run "git pull origin master" @@
+      run "git checkout %s" git_rev @@
       run "opam repo set-url default http://opamarchive:8081" @@
       run "opam update" @@
       run "opam depext -uivy ocamlfind ocamlbuild camlp4"
     in
     let bulk_build ~ocaml_version =
-      Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s" ocaml_version) (base_dfile ~ocaml_version)
+      Term.head target >>= fun h -> 
+      let git_rev = Github_hooks.Commit.hash h in
+      Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s (%s)" ocaml_version git_rev) (base_dfile ~ocaml_version ~git_rev)
       >>= fun img ->
       list_all_pkgs img
       >>= fun pkgs ->
