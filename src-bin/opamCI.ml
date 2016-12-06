@@ -81,7 +81,7 @@ module Builder = struct
       report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
     ] in
     match DataKitCI.Target.Full.id target with
-    |`Ref r when Datakit_path.to_hum r = "tags/bulk" -> all_tests
+    |`Ref r when Datakit_path.to_hum r = "heads/bulk" -> all_tests
     | _ -> []
 
   let tests = [
