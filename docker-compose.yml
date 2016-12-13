@@ -5,7 +5,8 @@ services:
   ci:
     restart: always
     build: .
-    command: opam config exec -- ${CI_BINARY} --metadata-store tcp:datakit:5640 --web-ui=https://${CI_DOMAIN_NAME}/
+    entrypoint: /home/opam/.opam/4.03.0/bin/${CI_BINARY}
+    command: --metadata-store tcp:datakit:5640 --web-ui=https://${CI_DOMAIN_NAME}/
     ports:
      - "443:8443"
     volumes:
