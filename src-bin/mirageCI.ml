@@ -107,15 +107,15 @@ module Builder = struct
   let run_phases ?(extra_remotes=[]) () target =
     let build = build ~extra_remotes target in
     (* phase 1 *)
-    let alpine = build "alpine-3.4" primary_ocaml_version in
-    let phase1 = alpine >>= fun _ -> Term.return () in
+    let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
+    let phase1 = ubuntu >>= fun _ -> Term.return () in
     (* phase 2 revdeps *)
-    let alpine_revdeps =
-      Term.without_logs alpine >>=
+    let pkg_revdeps =
+      Term.without_logs ubuntu >>=
       revdeps target in
     let phase2 =
       after phase1 >>= fun () ->
-      alpine_revdeps in
+      pkg_revdeps in
     (* phase 3 compiler variants *)
     let compiler_versions =
       List.map (fun oc ->
