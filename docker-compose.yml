@@ -5,7 +5,7 @@ services:
   ci:
     restart: always
     build: .
-    command: --metadata-store tcp:datakit:5640 --web-ui=https://ci.ocaml.io/
+    command: --metadata-store tcp:datakit:5640 --web-ui=https://${CI_DOMAIN_NAME}/
     ports:
      - "443:8443"
     volumes:
@@ -25,15 +25,10 @@ services:
   bridge:
     restart: always
     image: docker/datakit:github
-    command: --datakit tcp://datakit:5640 --no-listen -v -c "*:r,status[ci/datakit]:x,webhook:rw" --webhook http://ci.ocaml.io:8100
+    command: --datakit tcp://datakit:5640 --no-listen -v -c "*:r,status[ci/datakit]:x,webhook:rw" --webhook http://${CI_DOMAIN_NAME}:8100
     ports:
      - "8100:8100"
     volumes:
       - ./data/bridge/_github:/root/.github
     depends_on:
      - datakit
-  opamarchive:
-    restart: always
-    image: ocaml/opam-archive
-    networks:
-     - opam_build 
