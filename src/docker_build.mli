@@ -18,12 +18,13 @@ type image = {
 }
 (** [image] has the metadata for a locally built Docker image *)
 
-val config : logs:Live_log.manager -> label:string -> pool:Monitored_pool.t -> timeout:float -> t
-(** [config ~logs ~label ~pool ~timeout] will configure a Docker builder to build
+val v : ?network:string -> logs:Live_log.manager -> label:string -> pool:Monitored_pool.t -> timeout:float -> unit -> t
+(** [config ?network ~logs ~label ~pool ~timeout] will configure a Docker builder to build
     images that are tagged with [label:digest] of the build, where [digest]
     is calculated using {!digest_of_dockerfile}.  [pool] controls the level
     of parallel builds allowed, and [timeout] is the length in seconds that
-    a build can run for before being terminated. *)
+    a build can run for before being terminated. [network] defines the Docker
+    network that the build process will run under (requires Docker 1.13+). *)
 
 val run : t -> hum:string -> Dockerfile.t -> image Term.t
 (** [run t ~hum d] will build the [d] Dockerfile using the [t] builder, and return

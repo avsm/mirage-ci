@@ -33,7 +33,7 @@ module Builder = struct
     | _ -> failwith "TODO package_of_repo"
 
   let label = "mir" 
-  let docker_t = Docker_build.config ~logs ~label ~pool ~timeout:one_hour
+  let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:one_hour ()
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
   let opam_t = Opam_build.config ~logs ~label
 

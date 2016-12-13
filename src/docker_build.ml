@@ -33,6 +33,7 @@ module Docker_builder = struct
     label: string;
     pool: Monitored_pool.t;
     timeout: float;
+    network: string option;
   }
 
   module Key = Dockerfile_key
@@ -68,7 +69,8 @@ module Docker_builder = struct
       let builton = string_of_float (Unix.gettimeofday ()) in
       let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
       run_long_cmd ~switch t job_id (fun switch ->
-        let cmd = Printf.sprintf "docker build %s --network mirageci_opam_build -t %s --no-cache --rm --force-rm - < %s" label tag fname in
+        let network = match t.network with None -> "" | Some n -> " --network" ^ n in
+        let cmd = Printf.sprintf "docker build%s %s -t %s --no-cache --rm --force-rm - < %s" network label tag fname in
         Process.run_with_exit_status ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun exit_status ->
         check_docker_status exit_status;
         let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
@@ -103,8 +105,8 @@ end
 module Docker_build_cache = Cache.Make(Docker_builder)
 
 type t = Docker_build_cache.t 
-let config ~logs ~label ~pool ~timeout =
-  Docker_build_cache.create ~logs { Docker_builder.label; pool; timeout }
+let v ?network ~logs ~label ~pool ~timeout () =
+  Docker_build_cache.create ~logs { Docker_builder.label; pool; timeout; network }
 
 let run config ~hum dfile =
   let open! Term.Infix in

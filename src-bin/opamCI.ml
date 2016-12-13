@@ -20,7 +20,7 @@ module Builder = struct
   let pool = Monitored_pool.create "docker" 24
 
   let label = "ocaml" 
-  let docker_t = Docker_build.config ~logs ~label ~pool ~timeout:eight_hours
+  let docker_t = Docker_build.v ~network:"mirageci_opam_build" ~logs ~label ~pool ~timeout:eight_hours ()
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:eight_hours
   let opam_t = Opam_build.config ~logs ~label
 
