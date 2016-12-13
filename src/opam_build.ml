@@ -13,18 +13,6 @@ module Log = (val Logs.src_log src : Logs.LOG)
 
 let ( / ) = Datakit_path.Infix.( / )
 
-module Dockerfile_utils = struct
-  let of_cstruct c =
-    Cstruct.to_string c |>
-    Sexplib.Sexp.of_string |>
-    Dockerfile.t_of_sexp
-
-  let to_cstruct d =
-    Dockerfile.sexp_of_t d |> fun s ->
-    Sexplib.Sexp.to_string_hum s |> fun s ->
-    Cstruct.of_string s
-end
-
 type key = {
   packages: string list;
   target: [`PR of PR.t | `Ref of Ref.t ];
@@ -117,7 +105,7 @@ module Opam_builder = struct
     let open Utils.Infix in
     let output = Live_log.write log in
     Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list string)) packages distro ocaml_version;
-    let data = Dockerfile_utils.to_cstruct dockerfile in
+    let data = Dockerfile_conv.to_cstruct dockerfile in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "Dockerfile.sexp") data >>*= fun () ->
     output (Dockerfile.string_of_t dockerfile);
     Lwt.return  (Ok dockerfile)
@@ -137,7 +125,7 @@ module Opam_builder = struct
   let load _t tr _k =
     let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/Dockerfile.sexp") >>*= fun data ->
-    Lwt.return (Dockerfile_utils.of_cstruct data)
+    Lwt.return (Dockerfile_conv.of_cstruct data)
 
 end
 
