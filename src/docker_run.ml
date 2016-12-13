@@ -4,11 +4,11 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-open DataKitCI
+open Datakit_ci
 open! Astring
 open Lwt.Infix
 
-let src = Logs.Src.create "datakit-ci.docker-run" ~doc:"Docker plugin for DataKitCI"
+let src = Logs.Src.create "datakit-ci.docker-run" ~doc:"Docker plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 let ( / ) = Datakit_path.Infix.( / )
@@ -48,7 +48,7 @@ module Docker_runner = struct
         Lwt.return (Buffer.contents cmd_output)
       )
     ) >>= fun cmd_output ->
-    let open Utils in
+    let open Utils.Infix in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "output") (Cstruct.of_string cmd_output) >>*= fun () ->
     Lwt.return (Ok cmd_output)
 
@@ -59,7 +59,7 @@ module Docker_runner = struct
     Fmt.strf "docker-run-%s"
 
   let load _t tr _key =
-    let open Utils in
+    let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/output") >>*= fun output ->
     Lwt.return (Cstruct.to_string output)
 end
@@ -73,7 +73,7 @@ let config ~logs ~label ~pool ~timeout =
 let run ~tag ~cmd config =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  Docker_run_cache.term config job_id (tag,cmd)
+  Docker_run_cache.find config job_id (tag,cmd)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

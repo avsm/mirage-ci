@@ -6,7 +6,7 @@
 
 (** DataKitCI module to build a Dockerfile image *)
 
-open DataKitCI
+open Datakit_ci
 
 type t
 (** [t] is the state of a [Docker_build] instance *)

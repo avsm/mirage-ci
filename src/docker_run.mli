@@ -4,9 +4,9 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(** DataKitCI module to run a Docker image and capture output *)
+(** Datakit_ci module to run a Docker image and capture output *)
 
-open DataKitCI
+open Datakit_ci
 
 type t
 (** [t] is the state of a [Docker_run] instance *)

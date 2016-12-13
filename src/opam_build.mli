@@ -4,19 +4,20 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(** DataKitCI module to generate a Docker from an OPAM PR *)
-open DataKitCI
+(** Datakit_ci module to generate a Docker from an OPAM PR *)
+open Datakit_ci
+open Datakit_github
 
 type t
 (* [t] is the state of an Opam_build instance *)
 
 type key = {
   packages: string list;
-  target: [ `PR of Github_hooks.PR.t | `Ref of Github_hooks.Ref.t ];
+  target: [ `PR of PR.t | `Ref of Ref.t ];
   distro: string;
   ocaml_version: string;
   remote_git_rev: string;
-  extra_remotes: (ProjectID.t * string * Github_hooks.Commit.t) list;
+  extra_remotes: (Repo.t * string * Commit.t) list;
 }
 (** [key] captures all the parameters necessary for a reproducible Opam build *)
 
@@ -25,7 +26,7 @@ val config : logs:Live_log.manager -> label:string -> t
   Dockerfiles from {!key} parameters. *)
 
 val run : t -> key -> Dockerfile.t Term.t
-(** [run t key] will result in a DataKitCI {!Term.t} that will generate
+(** [run t key] will result in a Datakit_ci {!Term.t} that will generate
   a {!Dockerfile.t} that can be built using a {!Docker_build.t} instance
   into a concrete image. *)
 

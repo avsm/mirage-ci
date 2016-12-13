@@ -15,6 +15,7 @@ depends: [
   "ppx_sexp_conv" {build}
   "dockerfile" {>="1.7.0"}
   "datakit-ci"
+  "datakit"
   "toml"
   "fpath"
   "asetmap"

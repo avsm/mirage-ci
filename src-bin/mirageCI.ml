@@ -6,9 +6,8 @@
 
 open !Astring
 
-open DataKitCI
-
-let logs = Main.logs
+open Datakit_ci
+open Datakit_github
 
 module Builder = struct
 
@@ -16,8 +15,8 @@ module Builder = struct
 
   let one_hour = 60. *. 60.
   let three_hours = one_hour *. 3.
-  let opam_repo = ProjectID.v ~user:"mirage" ~project:"opam-repository"
-  let mirage_dev_repo = ProjectID.v ~user:"mirage" ~project:"mirage-dev"
+  let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
+  let mirage_dev_repo = Repo.v ~user:"mirage" ~repo:"mirage-dev"
   let mirage_dev_branch = "master"
   let mirage_dev_remote = mirage_dev_repo, mirage_dev_branch
   let primary_ocaml_version = "4.04.0"
@@ -26,8 +25,9 @@ module Builder = struct
   let pool = Monitored_pool.create "docker" 5
 
   (* XXX TODO temporary until we can query package list automatically *)
-  let packages_of_repo (project, _target) =
-    match Fmt.strf "%a" ProjectID.pp project with
+  let packages_of_repo target =
+    let repo = Target.repo target in
+    match Fmt.strf "%a" Repo.pp repo with
     | "mirage/ocaml-cohttp" -> ["cohttp"]
     | "mirage/mirage" -> ["mirage";"mirage-types"]
     | _ -> failwith "TODO package_of_repo"
@@ -82,15 +82,15 @@ module Builder = struct
     Term.wait_for_all
 
   (* base building *)
-  let build ?(extra_remotes=[]) target distro ocaml_version = 
+  let build ?(extra_remotes=[]) target distro ocaml_version =
     let packages = packages_of_repo target in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     term_map_s (fun (repo,branch) ->
-      Term.branch_head repo branch >>= fun commit ->
-      Term.return (repo,branch,commit)
+      Term.branch_head repo branch >|= fun commit ->
+      (repo,branch,commit)
     ) extra_remotes >>= fun extra_remotes ->
-    let remote_git_rev = Github_hooks.Commit.hash opam_repo_commit in
-    Term.github_target target >>= fun target ->
+    let remote_git_rev = Commit.hash opam_repo_commit in
+    Term.target target >>= fun target ->
     let hum = Fmt.(strf "opam install %a" (list ~sep:Format.pp_print_space string) packages) in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run docker_t ~hum
@@ -155,8 +155,8 @@ module Builder = struct
         report ~order:4 ~label:"Common Distros" phase4;
         report ~order:5 ~label:"All Distros" phase5;
       ] in
-    match DataKitCI.Target.Full.id target with
-    |`Ref r when Datakit_path.to_hum r = "heads/master" -> all_tests
+    match Target.id target with
+    |`Ref ["heads";"master"] -> all_tests
     |`PR _  -> all_tests
     | _ -> []
 
@@ -176,7 +176,7 @@ let web_config =
     ()
 
 let () =
-  Main.run (Cmdliner.Term.pure (Config.ci ~web_config ~projects:Builder.tests))
+  run (Cmdliner.Term.pure (Config.v ~web_config ~projects:Builder.tests))
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

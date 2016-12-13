@@ -5,9 +5,10 @@
   ---------------------------------------------------------------------------*)
 
 open !Astring
-open DataKitCI
+open Datakit_ci
+open Datakit_github
 
-let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM plugin for DataKitCI"
+let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 let ( / ) = Datakit_path.Infix.( / )
@@ -26,11 +27,11 @@ end
 
 type key = {
   packages: string list;
-  target: [`PR of Github_hooks.PR.t | `Ref of Github_hooks.Ref.t ];
+  target: [`PR of PR.t | `Ref of Ref.t ];
   distro: string;
   ocaml_version: string;
   remote_git_rev: string;
-  extra_remotes: (ProjectID.t * string * Github_hooks.Commit.t) list;
+  extra_remotes: (Repo.t * string * Commit.t) list;
 }
 
 module Opam_key = struct
@@ -39,8 +40,8 @@ module Opam_key = struct
 
   let compare_target a b =
     match a,b with
-    |`PR a, `PR b -> Github_hooks.PR.compare a b
-    |`Ref a, `Ref b -> Github_hooks.Ref.compare a b
+    |`PR a, `PR b -> PR.compare a b
+    |`Ref a, `Ref b -> Ref.compare a b
     |a,b -> Pervasives.compare a b
 
   let compare a b =
@@ -60,20 +61,18 @@ module Opam_builder = struct
   type value = Dockerfile.t
 
   let id_of_target = function
-    | `PR pr -> string_of_int (Github_hooks.PR.id pr)
-    | `Ref rf -> Datakit_path.to_hum (Github_hooks.Ref.name rf)
+    | `PR pr -> string_of_int (PR.number pr)
+    | `Ref rf -> Fmt.strf "%a" Ref.pp_name (Ref.name rf)
 
   let project_of_target = function
-    | `PR pr -> Github_hooks.PR.project pr
-    | `Ref rf -> Github_hooks.Ref.project rf
+    | `PR pr -> PR.repo pr
+    | `Ref rf -> Ref.repo rf
 
-  let head_of_target = function
-    | `PR pr -> Github_hooks.PR.head pr
-    | `Ref rf -> Github_hooks.Ref.head rf
+  let head_of_target = Target.head
 
   let branch_of_target = function
-    | `PR pr -> Printf.sprintf "pull/%d/head" (Github_hooks.PR.id pr)
-    | `Ref r -> Github_hooks.Ref.name r |> Datakit_path.to_hum
+    | `PR pr -> Printf.sprintf "pull/%d/head" (PR.number pr)
+    | `Ref r -> Fmt.strf "%a" Ref.pp_name (Ref.name r)
 
   let name t = "opam:" ^ t.label
 
@@ -82,8 +81,8 @@ module Opam_builder = struct
     let remotes =
       String.concat ~sep:":" (
        List.map (fun (pid,_,com) ->
-         Fmt.strf "%a:%s" ProjectID.pp pid
-          (String.with_range ~len:6 (Github_hooks.Commit.hash com))
+         Fmt.strf "%a:%s" Repo.pp pid
+          (String.with_range ~len:8 (Commit.hash com))
        ) extra_remotes)
       in
     Fmt.strf "Dockerfile %a %s:%s (%s/%s/opam-repo:%s:%s)"
@@ -92,14 +91,14 @@ module Opam_builder = struct
 
   let generate _t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
     let pid = project_of_target target in
-    let commit = Github_hooks.Commit.hash (head_of_target target) in
+    let commit = Commit.hash (head_of_target target) in
     let remotes_ref = ref 0 in
     let dockerfile =
       let open! Dockerfile in
       let remotes = List.map (fun (pid,_,commit) ->
         incr remotes_ref;
         run "opam remote add extra%d https://github.com/%s.git#%s"
-        !remotes_ref (Fmt.strf "%a" ProjectID.pp pid) (Github_hooks.Commit.hash commit)
+        !remotes_ref (Fmt.strf "%a" Repo.pp pid) (Commit.hash commit)
         ) extra_remotes in
       let pins = List.map (run "opam pin add -n %s /home/opam/src") packages in
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
@@ -108,14 +107,14 @@ module Opam_builder = struct
       (run "git checkout %s" remote_git_rev @@@ remotes) @@
       run "opam update" @@
       run "git clone git://github.com/%s/%s /home/opam/src"
-        pid.ProjectID.user pid.ProjectID.project @@
+        pid.Repo.user pid.Repo.repo @@
       workdir "/home/opam/src" @@
       run "git fetch origin %s:cibranch" (branch_of_target target) @@
       (run "git checkout %s" commit @@@ pins) @@
       run "opam depext -uy %s" (String.concat ~sep:" " packages) @@
       run "opam install -j 2 -vy %s" (String.concat ~sep:" " packages)
     in
-    let open Utils in
+    let open Utils.Infix in
     let output = Live_log.write log in
     Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list string)) packages distro ocaml_version;
     let data = Dockerfile_utils.to_cstruct dockerfile in
@@ -126,17 +125,17 @@ module Opam_builder = struct
   let branch t {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes}=
     let id = id_of_target target in
     let proj = project_of_target target in
-    let commit = Github_hooks.Commit.hash (head_of_target target) in
+    let commit = Commit.hash (head_of_target target) in
     let extra = String.concat ~sep:":" 
        (List.map (fun (pid,_,commit) -> Fmt.strf "%a#%s"
-        ProjectID.pp pid (Github_hooks.Commit.hash commit)) extra_remotes) in
+        Repo.pp pid (Commit.hash commit)) extra_remotes) in
     Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%s-%s-%s-%a"
-      proj.ProjectID.user proj.ProjectID.project
+      proj.Repo.user proj.Repo.repo
       t.label distro ocaml_version id commit remote_git_rev extra (Fmt.(list string)) packages |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =
-    let open Utils in
+    let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/Dockerfile.sexp") >>*= fun data ->
     Lwt.return (Dockerfile_utils.of_cstruct data)
 
@@ -150,7 +149,7 @@ let config ~logs ~label =
   Opam_cache.create ~logs { Opam_builder.label }
 
 let run config pr =
-  Opam_cache.term config Opam_builder.NoContext pr
+  Opam_cache.find config Opam_builder.NoContext pr
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

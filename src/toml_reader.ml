@@ -5,17 +5,17 @@
   ---------------------------------------------------------------------------*)
 
 open !Astring
-open DataKitCI
+open Datakit_ci
 open Lwt.Infix
 
-let src = Logs.Src.create "datakit-ci.toml" ~doc:"TOML reader plugin for DataKitCI"
+let src = Logs.Src.create "datakit-ci.toml" ~doc:"TOML reader plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 let ( / ) = Datakit_path.Infix.( / )
 
 module Git_key = struct
-  type t = DKCI_git.Commit.t
-  let compare = DKCI_git.Commit.compare
+  type t = Git.commit
+  let compare a b = String.compare (Git.hash a) (Git.hash b)
 end
 
 module Toml_utils = struct
@@ -34,7 +34,7 @@ module Toml_builder = struct
   type t = {
     label: string;
     toml_filename: string;
-    git_t: DKCI_git.t;
+    git_t: Git.t;
   }
 
   module Key = Git_key
@@ -43,10 +43,10 @@ module Toml_builder = struct
 
   let name t = "toml-build:" ^ t.label
 
-  let title t commit = DKCI_git.Commit.hash commit
+  let title t commit = Git.hash commit
 
   let generate {label;git_t;toml_filename} ~switch:_ ~log trans job_id commit =
-    DKCI_git.with_checkout ~job_id ~log commit
+    Git.with_checkout ~job_id ~log commit
      (fun file ->
        let fname = Fmt.strf "%s/%s" file toml_filename in
        Live_log.write log (Fmt.strf "reading file from %s\n" fname);
@@ -57,7 +57,7 @@ module Toml_builder = struct
           Lwt.return []
        | Ok t -> Lwt.return t
      ) >>= fun toml ->
-    let open Utils in
+    let open Utils.Infix in
     let output = Live_log.write log in
     Live_log.log log "Storing TOML";
     let data = Toml_utils.to_cstruct toml in
@@ -66,10 +66,10 @@ module Toml_builder = struct
     Lwt.return (Ok toml)
 
   let branch {label;git_t} commit =
-    Fmt.strf "opam-toml-%s" (DKCI_git.Commit.hash commit)
+    Fmt.strf "opam-toml-%s" (Git.hash commit)
 
   let load _t tr _k =
-    let open Utils in
+    let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/toml.sexp") >>*= fun data ->
     Lwt.return (Toml_utils.of_cstruct data)
 end
@@ -83,7 +83,7 @@ let config ~logs ~label ~toml_filename ~git_t =
 let run config commit =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  Toml_cache.term config job_id commit
+  Toml_cache.find config job_id commit
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

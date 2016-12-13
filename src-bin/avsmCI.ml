@@ -9,23 +9,23 @@
 
 open !Astring
 
-open DataKitCI
-
-let logs = Main.logs
+open Datakit_ci
+open Datakit_github
 
 module Builder = struct
 
   open Term.Infix
 
   let one_hour = 60. *. 60.
-  let opam_repo = ProjectID.v ~user:"mirage" ~project:"opam-repository"
+  let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
   let primary_ocaml_version = "4.03.0"
 
   let pool = Monitored_pool.create "docker" 2
 
   (* XXX TODO temporary until we can query package list automatically *)
-  let packages_of_repo (project,_target) =
-    match Fmt.strf "%a" ProjectID.pp project with
+  let packages_of_repo target =
+    let repo = Target.repo target in
+    match Fmt.strf "%a" Repo.pp repo with
     | "avsm/ocaml-dockerfile" -> ["dockerfile"]
     | _ -> failwith "TODO package_of_repo"
 
@@ -33,7 +33,7 @@ module Builder = struct
   let docker_t = Docker_build.config ~logs ~label ~pool ~timeout:one_hour
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
   let opam_t = Opam_build.config ~logs ~label
-  let git_mk user repo = DKCI_git.connect ~logs ~dir:("/home/avsm/mirage-ci/_checkouts"^"/"^user^"/"^repo)
+  let git_mk user repo = Git.v ~logs ~dir:("/home/avsm/mirage-ci/_checkouts"^"/"^user^"/"^repo)
   let git_t = git_mk "avsm" "ocaml-dockerfile"
   let toml_t = Toml_reader.config ~logs ~label ~git_t ~toml_filename:".datakit.toml"
 
@@ -53,8 +53,8 @@ module Builder = struct
       Term.branch_head repo branch >>= fun commit ->
       Term.return (repo,branch,commit)
     ) extra_remotes >>= fun extra_remotes ->
-    let remote_git_rev = Github_hooks.Commit.hash opam_repo_commit in
-    Term.github_target target >>= fun target -> 
+    let remote_git_rev = Commit.hash opam_repo_commit in
+    Term.target target >>= fun target -> 
     let hum = Fmt.(strf "opam install %a" (list ~sep:Format.pp_print_space string) packages) in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run ~hum docker_t
@@ -93,11 +93,10 @@ module Builder = struct
     proc ([],[]) tests
 
   let run_toml () target =
-    let t = match DataKitCI.Target.Full.id target with
-    |`Ref r -> begin
-       DKCI_git.fetch_head git_t target >>= fun local_head ->
+    let t = match Target.id target with
+    |`Ref ref -> begin
+       Git.fetch_head git_t target >>= fun local_head ->
        Toml_reader.run toml_t local_head >>= fun tests ->
-       let ref = Datakit_path.unwrap r in
        match Datakit_toml.assoc ref tests with
        | None -> Term.return "skipped"
        | Some t -> run_tests target t
@@ -125,7 +124,7 @@ let () =
   let info =
     let doc = "Experimental CI to build the $(i,topkg) workflow for personal projects" in
     Term.info ~version:"0.0" ~doc "avsmCI" in
-  Main.run ~info (Cmdliner.Term.pure (Config.ci ~web_config ~projects:Builder.tests))
+  run ~info (Cmdliner.Term.pure (Config.v ~web_config ~projects:Builder.tests))
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

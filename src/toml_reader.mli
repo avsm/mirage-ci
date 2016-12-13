@@ -4,13 +4,15 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
+open Datakit_ci
+
 type t
 
 val config :
-  logs:DataKitCI.Live_log.manager ->
-  label:string -> toml_filename:string -> git_t:DKCI_git.t -> t
+  logs:Live_log.manager ->
+  label:string -> toml_filename:string -> git_t:Git.t -> t
 
-val run : t -> DKCI_git.Commit.t -> Datakit_toml.l DataKitCI.Term.t
+val run : t -> Git.commit -> Datakit_toml.l Term.t
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

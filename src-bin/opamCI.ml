@@ -6,9 +6,8 @@
 
 open !Astring
 
-open DataKitCI
-
-let logs = Main.logs
+open Datakit_ci
+open Datakit_github
 
 module Builder = struct
 
@@ -16,7 +15,7 @@ module Builder = struct
 
   let one_hour = 60. *. 60.
   let eight_hours = one_hour *. 8.
-  let opam_repo = ProjectID.v ~user:"ocaml" ~project:"opam-repository"
+  let opam_repo = Repo.v ~user:"ocaml" ~repo:"opam-repository"
 
   let pool = Monitored_pool.create "docker" 24
 
@@ -71,7 +70,7 @@ module Builder = struct
     in
     let bulk_build ~ocaml_version =
       Term.head target >>= fun h -> 
-      let git_rev = Github_hooks.Commit.hash h in
+      let git_rev = Commit.hash h in
       Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s (%s)" ocaml_version git_rev) (base_dfile ~ocaml_version ~git_rev)
       >>= fun img ->
       list_all_pkgs img
@@ -83,8 +82,8 @@ module Builder = struct
       report ~order:2 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
       report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
     ] in
-    match DataKitCI.Target.Full.id target with
-    |`Ref r when Datakit_path.to_hum r = "heads/bulk" -> all_tests
+    match Target.id target with
+    |`Ref ["heads";"bulk"] -> all_tests
     | _ -> []
 
   let tests = [
@@ -103,7 +102,7 @@ let web_config =
     ()
 
 let () =
-  Main.run (Cmdliner.Term.pure (Config.ci ~web_config ~projects:Builder.tests))
+  run (Cmdliner.Term.pure (Config.v ~web_config ~projects:Builder.tests))
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

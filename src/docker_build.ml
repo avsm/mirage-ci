@@ -6,7 +6,7 @@
 
 open! Astring
 open Lwt.Infix
-open DataKitCI
+open Datakit_ci
 
 let ( / ) = Datakit_path.Infix.( / )
 
@@ -76,7 +76,7 @@ module Docker_builder = struct
         Process.run ~switch ~output:(Buffer.add_string images_output) ("",[|"sh";"-c";cmd|]) >|= fun () ->
         Buffer.contents images_output |> fun sha256 -> String.trim sha256
       ) >>= fun sha256 ->
-      let open Utils in
+      let open Utils.Infix in
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "sha256") (Cstruct.of_string sha256) >>*= fun () ->
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "tag") (Cstruct.of_string tag) >>*= fun () ->
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "label") (Cstruct.of_string hum) >>*= fun () ->
@@ -89,7 +89,7 @@ module Docker_builder = struct
     Fmt.strf "docker-build-%s"
 
   let load _t tr _key =
-    let open Utils in
+    let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/sha256") >>*= fun sha256 ->
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/tag") >>*= fun tag ->
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/label") >>*= fun hum ->
@@ -109,7 +109,7 @@ let config ~logs ~label ~pool ~timeout =
 let run config ~hum dfile =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  Docker_build_cache.term config job_id (dfile,hum)
+  Docker_build_cache.find config job_id (dfile,hum)
 
 
 (*---------------------------------------------------------------------------
