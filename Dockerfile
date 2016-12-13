@@ -9,7 +9,5 @@ RUN opam pin add -n mirage-ci /home/opam/src
 RUN opam install -vy -j 4 mirage-ci
 ENV CONDUIT_TLS=native
 ENV OCAMLRUNPARAM=b
-RUN opam config exec -- ocaml /home/opam/src/check-libev.ml
 USER root
-ENTRYPOINT ["/home/opam/.opam/4.03.0/bin/mirageCI"]
 CMD []
