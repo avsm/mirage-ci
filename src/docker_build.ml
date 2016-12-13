@@ -69,7 +69,7 @@ module Docker_builder = struct
       let builton = string_of_float (Unix.gettimeofday ()) in
       let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
       run_long_cmd ~switch t job_id (fun switch ->
-        let network = match t.network with None -> "" | Some n -> " --network" ^ n in
+        let network = match t.network with None -> "" | Some n -> " --network " ^ n in
         let cmd = Printf.sprintf "docker build%s %s -t %s --no-cache --rm --force-rm - < %s" network label tag fname in
         Process.run_with_exit_status ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun exit_status ->
         check_docker_status exit_status;

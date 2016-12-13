@@ -33,3 +33,8 @@ services:
       - ./data/bridge/_github:/root/.github
     depends_on:
      - datakit
+  opamarchive:
+    restart: always
+    image: ocaml/opam-archive
+    networks:
+     - opam_build 
