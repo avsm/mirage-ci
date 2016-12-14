@@ -24,16 +24,24 @@ module Opam_key = struct
 
   type t = key
 
+  let ( ++ ) x fn =
+    match x with
+    | 0 -> fn ()
+    | r -> r
+
   let compare_target a b =
     match a,b with
     |`PR a, `PR b -> PR.compare a b
     |`Ref a, `Ref b -> Ref.compare a b
     |a,b -> Pervasives.compare a b
 
-  let compare a b =
-    match compare_target a.target b.target with
-    | 0 -> Pervasives.compare (a.distro,a.ocaml_version) (b.distro,b.ocaml_version)
-    | x -> x
+  let compare {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes} b =
+    Pervasives.compare packages b.packages ++ fun () ->
+    compare_target target b.target ++ fun () ->
+    String.compare distro b.distro ++ fun () ->
+    String.compare ocaml_version b.ocaml_version ++ fun () ->
+    String.compare remote_git_rev b.remote_git_rev ++ fun () ->
+    Pervasives.compare extra_remotes b.extra_remotes
 end
 
 
