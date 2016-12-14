@@ -11,8 +11,6 @@ open Datakit_github
 let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
-let ( / ) = Datakit_path.Infix.( / )
-
 type key = {
   packages: string list;
   target: [`PR of PR.t | `Ref of Ref.t ];
@@ -42,6 +40,7 @@ end
 module Opam_builder = struct
   type t = {
     label : string;
+    version : [ `V1 | `V2 ]
   }
 
   module Key = Opam_key
@@ -77,7 +76,7 @@ module Opam_builder = struct
       Fmt.(list string) packages t.label id distro ocaml_version
       (String.with_range ~len:6 remote_git_rev) remotes
 
-  let generate _t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
+  let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
     let pid = project_of_target target in
     let commit = Commit.hash (head_of_target target) in
     let remotes_ref = ref 0 in
@@ -89,7 +88,7 @@ module Opam_builder = struct
         !remotes_ref (Fmt.strf "%a" Repo.pp pid) (Commit.hash commit)
         ) extra_remotes in
       let pins = List.map (run "opam pin add -n %s /home/opam/src") packages in
-      from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
+      from ~tag:(distro^"_ocaml-"^ocaml_version) ("ocaml/opam" ^ (match t.version with |`V2 -> "-dev"|_ ->"")) @@
       workdir "/home/opam/opam-repository" @@
       run "git pull origin master" @@
       (run "git checkout %s" remote_git_rev @@@ remotes) @@
@@ -103,6 +102,7 @@ module Opam_builder = struct
       run "opam install -j 2 -vy %s" (String.concat ~sep:" " packages)
     in
     let open Utils.Infix in
+    let open Datakit_path.Infix in
     let output = Live_log.write log in
     Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list string)) packages distro ocaml_version;
     let data = Dockerfile_conv.to_cstruct dockerfile in
@@ -133,8 +133,8 @@ module Opam_cache = Cache.Make(Opam_builder)
 
 type t = Opam_cache.t
 
-let config ~logs ~label =
-  Opam_cache.create ~logs { Opam_builder.label }
+let v ~version ~logs ~label =
+  Opam_cache.create ~logs { Opam_builder.label; version }
 
 let run config pr =
   Opam_cache.find config Opam_builder.NoContext pr

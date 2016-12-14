@@ -21,8 +21,8 @@ type key = {
 }
 (** [key] captures all the parameters necessary for a reproducible Opam build *)
 
-val config : logs:Live_log.manager -> label:string -> t
-(** [config ~logs ~label t] will configure an [Opam_build] instance to generate
+val v : version:[ `V1 | `V2 ] -> logs:Live_log.manager -> label:string -> t
+(** [v ~logs ~label t] will configure an [Opam_build] instance to generate
   Dockerfiles from {!key} parameters. *)
 
 val run : t -> key -> Dockerfile.t Term.t

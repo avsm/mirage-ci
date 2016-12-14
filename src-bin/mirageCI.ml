@@ -35,7 +35,7 @@ module Builder = struct
   let label = "mir" 
   let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:one_hour ()
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
-  let opam_t = Opam_build.config ~logs ~label
+  let opam_t = Opam_build.v ~logs ~label ~version:`V1
 
   let rec term_map_s fn l =
     match l with
