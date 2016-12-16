@@ -6,17 +6,13 @@
 
 open Datakit_ci.Term
 
-val build_revdep : Docker_build.t -> Docker_build.image -> string -> Docker_build.image t
-
-val build_revdeps : Docker_build.t -> Docker_build.image -> string -> unit t
-
 val build_package : Docker_build.t -> Docker_build.image -> string -> Docker_build.image t
 
 val build_packages : Docker_build.t -> Docker_build.image -> string list -> unit t
 
-val revdeps : Docker_build.t -> Docker_run.t -> string list -> Docker_build.image -> unit t
+val build_revdeps : Docker_build.t -> Docker_run.t -> string list -> Docker_build.image -> unit t
 
-val list_revdeps : Docker_run.t -> Docker_build.image -> string -> string t
+val list_revdeps : Docker_run.t -> Docker_build.image -> string -> string list t
 
 val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
 (*---------------------------------------------------------------------------

@@ -7,7 +7,6 @@
 open !Astring
 open Datakit_ci
 open Term.Infix
-open Term_utils
 
 let build_package t image pkg =
   let open !Dockerfile in
@@ -25,38 +24,21 @@ let build_packages t image pkgs =
   Term.wait_for_all |>
   Term_utils.ignore_failure ~on_fail:(fun _ -> ())
 
-(* revdep handling *) 
-let build_revdep t image pkg =
-  let open !Dockerfile in
-  let dfile =
-    from image.Docker_build.sha256 @@
-    run "opam depext -uiyv -j 2 %s" pkg in
-  let hum = Fmt.strf "opam install %s" pkg in
-  Docker_build.run t ~hum dfile
-
-let build_revdeps t image pkgs =
-  String.cuts ~empty:false ~sep:"\n" pkgs |>
-    List.map (fun pkg ->
-      let t = build_revdep t image pkg in
-      pkg, t
-    ) |>
-  Term.wait_for_all |>
-  ignore_failure ~on_fail:(fun _ -> ())
-
 let list_all_packages t image =
   let cmd = ["opam";"list";"-a";"-s"] in
-  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|= fun pkgs ->
-  String.cuts ~empty:false ~sep:"\n" pkgs
+  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+  String.cuts ~empty:false ~sep:"\n"
 
 let list_revdeps t image pkg =
   let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
-  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t
+  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+  String.cuts ~empty:false ~sep:"\n"
 
-let revdeps t run_t packages image =
+let build_revdeps t run_t packages image =
   List.map (fun pkg ->
     let terms =
       list_revdeps run_t image pkg >>=
-      build_revdeps t image in
+      build_packages t image in
     let l = Fmt.strf "revdeps:%s" pkg in
     l, terms) packages |>
   Term.wait_for_all

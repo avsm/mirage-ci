@@ -58,7 +58,7 @@ module Builder = struct
     (* phase 2 revdeps *)
     let pkg_revdeps =
       Term.without_logs ubuntu >>=
-      Opam_ops.revdeps docker_t docker_run_t (packages_of_repo target) in
+      Opam_ops.build_revdeps docker_t docker_run_t (packages_of_repo target) in
     let phase2 =
       Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in
