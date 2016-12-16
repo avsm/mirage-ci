@@ -18,43 +18,10 @@ module Builder = struct
   let opam_repo = Repo.v ~user:"ocaml" ~repo:"opam-repository"
 
   let pool = Monitored_pool.create "docker" 24
-
   let label = "ocaml" 
   let docker_t = Docker_build.v ~network:"mirageci_opam_build" ~logs ~label ~pool ~timeout:eight_hours ()
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:eight_hours
   let opam_t = Opam_build.v ~logs ~label ~version:`V2
-
-  let build_opam_pkg image pkg =
-    let open !Dockerfile in
-    let dfile =
-      from image.Docker_build.sha256 @@
-      run "opam depext -iyv -j 2 %s" pkg in
-    let hum = Fmt.strf "opam install %s" pkg in
-    Docker_build.run docker_t ~hum dfile
-
-  let ignore_failure ~on_fail t =
-   Term.state t >>= function
-   | Error (`Pending m) -> Term.pending "%s" m
-   | Error (`Failure m) -> Term.return (on_fail m)
-   | Ok m -> Term.return m
-
-  let build_all_pkgs image pkgs =
-    String.cuts ~empty:false ~sep:"\n" pkgs |>
-    List.map (fun pkg ->
-      let t = build_opam_pkg image pkg in
-      pkg, t
-    ) |>
-    Term.wait_for_all |>
-    ignore_failure ~on_fail:(fun _ -> ())
-
-  let list_all_pkgs image =
-    let cmd = ["opam";"list";"-a";"-s"] in
-    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd docker_run_t
-
-  let report ~order ~label t =
-    let l = Fmt.strf "%d %s" order label in
-    let t = t >>= fun _ -> Term.return label in
-    l, t
 
   let opam_build_all target =
     let distro = "ubuntu-16.04" in
@@ -72,15 +39,13 @@ module Builder = struct
       Term.head target >>= fun h -> 
       let git_rev = Commit.hash h in
       Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s (%s)" ocaml_version git_rev) (base_dfile ~ocaml_version ~git_rev)
-      >>= fun img ->
-      list_all_pkgs img
-      >>= fun pkgs ->
-      build_all_pkgs img pkgs
+      >>= fun img -> Opam_ops.list_all_pkgs docker_run_t img
+      >>= Opam_ops.build_packages docker_t img
     in
     let all_tests = [
-      report ~order:1 ~label:"4.03.0" (bulk_build ~ocaml_version:"4.03.0");
-      report ~order:2 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
-      report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
+      Term_utils.report ~order:1 ~label:"4.03.0" (bulk_build ~ocaml_version:"4.03.0");
+      Term_utils.report ~order:2 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
+      Term_utils.report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
     ] in
     match Target.id target with
     |`Ref ["heads";"bulk"] -> all_tests

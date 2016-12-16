@@ -40,6 +40,28 @@ let revdeps t run_t packages image =
     l, terms) packages |>
   Term.wait_for_all
 
+let list_all_pkgs t image =
+  let cmd = ["opam";"list";"-a";"-s"] in
+  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|= fun pkgs ->
+  String.cuts ~empty:false ~sep:"\n" pkgs
+
+let build_package t image pkg =
+  let open !Dockerfile in
+  let dfile =
+    from image.Docker_build.sha256 @@
+    run "opam depext -iyv -j 2 %s" pkg in
+  let hum = Fmt.strf "opam install %s" pkg in
+  Docker_build.run t ~hum dfile
+
+let build_packages t image pkgs =
+  List.map (fun pkg ->
+    let t = build_package t image pkg in
+    pkg, t
+  ) pkgs |>
+  Term.wait_for_all |>
+  Term_utils.ignore_failure ~on_fail:(fun _ -> ())
+
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 
