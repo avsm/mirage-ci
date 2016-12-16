@@ -17,13 +17,28 @@ let digest_of_dockerfile d =
   let dockerfile_str = Dockerfile.string_of_t d in
   Digest.string dockerfile_str |> Digest.to_hex
 
+type key = {
+  dockerfile: Dockerfile.t;
+  hum: string;
+  tag: string option;
+}
+
 module Dockerfile_key = struct
-  type t = Dockerfile.t * string
-  let compare = Pervasives.compare
+  type t = key
+
+  let ( ++ ) x fn =
+    match x with
+    | 0 -> fn ()
+    | r -> r
+
+  let compare {dockerfile;hum;tag} b =
+    Pervasives.compare dockerfile b.dockerfile ++ fun () ->
+    String.compare hum b.hum ++ fun () ->
+    Pervasives.compare tag b.tag
 end
 
 type image = {
-  tag: string;
+  tag: string option;
   sha256: string;
   hum: string;
 }
@@ -43,7 +58,7 @@ module Docker_builder = struct
 
   let name t = "docker-build:" ^ t.label
 
-  let title _t (dockerfile,hum) =
+  let title _t {dockerfile;hum;_} =
     digest_of_dockerfile dockerfile |> fun digest ->
     Fmt.strf "Building %s (%s)" hum (String.with_range ~len:6 digest)
 
@@ -58,11 +73,10 @@ module Docker_builder = struct
   | Unix.WSIGNALED x -> Utils.failf "Signal %d" x
   | Unix.WSTOPPED x -> Utils.failf "Stopped %d" x
 
-  let generate t ~switch ~log trans job_id (dockerfile,hum) =
+  let generate t ~switch ~log trans job_id {dockerfile;hum;tag} =
     let dockerfile_str = Dockerfile.string_of_t dockerfile in
     let digest = Digest.string dockerfile_str |> Digest.to_hex in
     let output = Live_log.write log in
-    let tag = t.label ^ ":" ^ digest in
     Utils.with_tmpdir (fun tmp_dir ->
       Dockerfile_distro.generate_dockerfile ~crunch:true tmp_dir dockerfile;
       let fname = tmp_dir ^ "/Dockerfile" in
@@ -70,7 +84,8 @@ module Docker_builder = struct
       let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
       run_long_cmd ~switch t job_id (fun switch ->
         let network = match t.network with None -> "" | Some n -> " --network " ^ n in
-        let cmd = Printf.sprintf "docker build%s %s -t %s --no-cache --rm --force-rm - < %s" network label tag fname in
+        let tag = match tag with None -> "" | Some t -> " -t " ^ t in
+        let cmd = Printf.sprintf "docker build%s %s%s --no-cache --rm --force-rm - < %s" network label tag fname in
         Process.run_with_exit_status ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun exit_status ->
         check_docker_status exit_status;
         let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
@@ -80,13 +95,13 @@ module Docker_builder = struct
       ) >>= fun sha256 ->
       let open Utils.Infix in
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "sha256") (Cstruct.of_string sha256) >>*= fun () ->
-      DK.Transaction.create_or_replace_file trans (Cache.Path.value / "tag") (Cstruct.of_string tag) >>*= fun () ->
+      DK.Transaction.create_or_replace_file trans (Cache.Path.value / "tag") (Cstruct.of_string (match tag with None -> "" | Some t -> t)) >>*= fun () ->
       DK.Transaction.create_or_replace_file trans (Cache.Path.value / "label") (Cstruct.of_string hum) >>*= fun () ->
-      output (Fmt.strf "Recorded container with tag %s (%s)" tag sha256);
+      output (Fmt.strf "Recorded container%s (%s)" (match tag with None -> "" | Some t -> Fmt.strf " with tag %s " t) sha256);
       Lwt.return (Ok {sha256; tag; hum} )
     )
 
-  let branch _t (dockerfile,_) =
+  let branch _t {dockerfile;_} =
     digest_of_dockerfile dockerfile |>
     Fmt.strf "docker-build-%s"
 
@@ -95,9 +110,10 @@ module Docker_builder = struct
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/sha256") >>*= fun sha256 ->
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/tag") >>*= fun tag ->
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/label") >>*= fun hum ->
+    let tag = match Cstruct.to_string tag with | "" -> None | x -> Some (String.trim x) in
     Lwt.return {
+      tag;
       sha256=String.trim (Cstruct.to_string sha256);
-      tag=String.trim (Cstruct.to_string tag);
       hum=String.trim (Cstruct.to_string hum);
     }
 end
@@ -108,10 +124,10 @@ type t = Docker_build_cache.t
 let v ?network ~logs ~label ~pool ~timeout () =
   Docker_build_cache.create ~logs { Docker_builder.label; pool; timeout; network }
 
-let run config ~hum dfile =
+let run config ?tag ~hum dockerfile =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  Docker_build_cache.find config job_id (dfile,hum)
+  Docker_build_cache.find config job_id {dockerfile; hum; tag}
 
 
 (*---------------------------------------------------------------------------
