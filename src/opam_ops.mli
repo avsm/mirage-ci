@@ -14,11 +14,11 @@ val build_package : Docker_build.t -> Docker_build.image -> string -> Docker_bui
 
 val build_packages : Docker_build.t -> Docker_build.image -> string list -> unit t
 
-val calculate_revdeps : Docker_run.t -> Docker_build.image -> string -> string t
-
 val revdeps : Docker_build.t -> Docker_run.t -> string list -> Docker_build.image -> unit t
 
-val list_all_pkgs : Docker_run.t -> Docker_build.image -> string list t
+val list_revdeps : Docker_run.t -> Docker_build.image -> string -> string t
+
+val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
           
