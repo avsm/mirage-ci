@@ -23,6 +23,10 @@ module Builder = struct
   let compiler_variants = ["4.03.0";"4.04.0_flambda"]
 
   let pool = Monitored_pool.create "docker" 5
+  let label = "mir" 
+  let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:one_hour ()
+  let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
+  let opam_t = Opam_build.v ~logs ~label ~version:`V1
 
   (* XXX TODO temporary until we can query package list automatically *)
   let packages_of_repo target =
@@ -32,60 +36,11 @@ module Builder = struct
     | "mirage/mirage" -> ["mirage";"mirage-types"]
     | _ -> failwith "TODO package_of_repo"
 
-  let label = "mir" 
-  let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:one_hour ()
-  let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
-  let opam_t = Opam_build.v ~logs ~label ~version:`V1
-
-  let rec term_map_s fn l =
-    match l with
-    | [] -> Term.return []
-    | x :: l ->
-        fn x >>= fun x ->
-        term_map_s fn l >|= fun l ->
-        x :: l
-
-  (* revdep handling *) 
-  let build_revdep image pkg =
-    let open !Dockerfile in
-    let dfile =
-      from image.Docker_build.sha256 @@
-      run "opam depext -uiyv -j 2 %s" pkg in
-    let hum = Fmt.strf "opam install %s" pkg in
-    Docker_build.run docker_t ~hum dfile
-
-  let ignore_failure ~on_fail t =
-   Term.state t >>= function
-   | Error (`Pending m) -> Term.pending "%s" m
-   | Error (`Failure m) -> Term.return (on_fail m)
-   | Ok m -> Term.return m
-
-  let build_revdeps image pkgs =
-    String.cuts ~empty:false ~sep:"\n" pkgs |>
-    List.map (fun pkg ->
-      let t = build_revdep image pkg in
-      pkg, t
-    ) |>
-    Term.wait_for_all |>
-    ignore_failure ~on_fail:(fun _ -> ())
-
-  let calculate_revdeps image pkg =
-    let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
-    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd docker_run_t
-
-  let revdeps target image =
-    packages_of_repo target |>
-    List.map (fun pkg ->
-      let t = calculate_revdeps image pkg >>= build_revdeps image in
-      let l = Fmt.strf "revdeps:%s" pkg in
-      l, t) |>
-    Term.wait_for_all
-
   (* base building *)
   let build ?(extra_remotes=[]) target distro ocaml_version =
     let packages = packages_of_repo target in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
-    term_map_s (fun (repo,branch) ->
+    Term_utils.term_map_s (fun (repo,branch) ->
       Term.branch_head repo branch >|= fun commit ->
       (repo,branch,commit)
     ) extra_remotes >>= fun extra_remotes ->
@@ -95,15 +50,6 @@ module Builder = struct
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run docker_t ~hum
 
-  let after t =
-    Term.wait_for ~while_pending:"waiting" ~on_failure:"depfail" t |>
-    Term.without_logs
-
-  let report ~order ~label t =
-    let l = Fmt.strf "%d %s" order label in
-    let t = t >>= fun _ -> Term.return label in
-    l, t
-
   let run_phases ?(extra_remotes=[]) () target =
     let build = build ~extra_remotes target in
     (* phase 1 *)
@@ -112,9 +58,9 @@ module Builder = struct
     (* phase 2 revdeps *)
     let pkg_revdeps =
       Term.without_logs ubuntu >>=
-      revdeps target in
+      Opam_ops.revdeps docker_t docker_run_t (packages_of_repo target) in
     let phase2 =
-      after phase1 >>= fun () ->
+      Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in
     (* phase 3 compiler variants *)
     let compiler_versions =
@@ -123,14 +69,14 @@ module Builder = struct
         ("OCaml "^oc), t
       ) compiler_variants in
     let phase3 =
-      after phase2 >>= fun () ->
+      Term_utils.after phase2 >>= fun () ->
       Term.wait_for_all compiler_versions in
     (* phase 4 *)
     let debian = build "debian-stable" primary_ocaml_version in
     let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
     let centos7 = build "centos-7" primary_ocaml_version in
     let phase4 =
-      after phase3 >>= fun () ->
+      Term_utils.after phase3 >>= fun () ->
       Term.wait_for_all [
         "Debian Stable", debian;
         "Ubuntu 16.04", ubuntu1604;
@@ -141,7 +87,7 @@ module Builder = struct
     let opensuse = build "opensuse-42.1" primary_ocaml_version in
     let fedora24 = build "fedora-24" primary_ocaml_version in
     let phase5 =
-      after phase4 >>= fun () ->
+      Term_utils.after phase4 >>= fun () ->
       Term.wait_for_all [
         "Debian Testing", debiant;
         "Debian Unstable", debianu;
@@ -149,11 +95,11 @@ module Builder = struct
         "Fedora 24", fedora24 ]
     in
     let all_tests = 
-      [ report ~order:1 ~label:"Build" phase1;
-        report ~order:2 ~label:"Revdeps" phase2;
-        report ~order:3 ~label:"Compilers" phase3;
-        report ~order:4 ~label:"Common Distros" phase4;
-        report ~order:5 ~label:"All Distros" phase5;
+      [ Term_utils.report ~order:1 ~label:"Build" phase1;
+        Term_utils.report ~order:2 ~label:"Revdeps" phase2;
+        Term_utils.report ~order:3 ~label:"Compilers" phase3;
+        Term_utils.report ~order:4 ~label:"Common Distros" phase4;
+        Term_utils.report ~order:5 ~label:"All Distros" phase5;
       ] in
     match Target.id target with
     |`Ref ["heads";"master"] -> all_tests
