@@ -7,7 +7,7 @@ sudo: false
 env:
  global:
    - PACKAGE="mirage-ci"
-   - PINS="session:https://github.com/talex5/ocaml-session.git#redis datakit-ci:https://github.com/docker/datakit"
+   - PINS="session:https://github.com/talex5/ocaml-session.git#redis datakit-ci:https://github.com/docker/datakit.git"
    - PRE_INSTALL_HOOK="cd /home/opam/opam-repository && git pull origin master && opam update -u -y"
  matrix:
    - DISTRO=debian-stable OCAML_VERSION=4.03.0
