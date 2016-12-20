@@ -31,4 +31,9 @@ distribution.
 
 ## Usage
 
-Work In Progress
+Work In Progress.
+
+Some examples live at:
+
+* <https://ci.ocaml.io>
+* <https://ci.mirage.io>
