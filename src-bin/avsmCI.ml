@@ -37,27 +37,21 @@ module Builder = struct
   let git_t = git_mk "avsm" "ocaml-dockerfile"
   let toml_t = Toml_reader.config ~logs ~label ~git_t ~toml_filename:".datakit.toml"
 
-  let rec term_map_s fn l =
-    match l with
-    | [] -> Term.return []
-    | x :: l ->
-        fn x >>= fun x ->
-        term_map_s fn l >|= fun l ->
-        x :: l
-
   (* base building *)
   let build ?(extra_remotes=[]) target distro ocaml_version = 
     let packages = packages_of_repo target in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
-    term_map_s (fun (repo,branch) ->
+    Term_utils.term_map_s (fun (repo,branch) ->
       Term.branch_head repo branch >>= fun commit ->
-      Term.return (repo,branch,commit)
+      Term.return (repo,commit)
     ) extra_remotes >>= fun extra_remotes ->
     let remote_git_rev = Commit.hash opam_repo_commit in
     Term.target target >>= fun target -> 
-    let hum = Fmt.(strf "opam install %a" (list ~sep:Format.pp_print_space string) packages) in
+    let pkg_target = String.concat ~sep:" " packages in
+    let hum = Fmt.strf "opam install %s" pkg_target in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
-    Docker_build.run ~hum docker_t
+    Docker_build.run ~hum docker_t >>= fun img ->
+    Opam_ops.build_package docker_t img pkg_target
 
   let report ?(allow_fail=false) label img =
     let term =

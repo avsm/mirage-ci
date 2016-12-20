@@ -8,7 +8,7 @@ open !Astring
 open Datakit_ci
 open Datakit_github
 
-let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM plugin for Datakit_ci"
+let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM1 plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 type key = {
@@ -17,7 +17,7 @@ type key = {
   distro: string;
   ocaml_version: string;
   remote_git_rev: string;
-  extra_remotes: (Repo.t * string * Commit.t) list;
+  extra_remotes: (Repo.t * Commit.t) list;
 }
 
 module Opam_key = struct
@@ -75,7 +75,7 @@ module Opam_builder = struct
     let id = id_of_target target in
     let remotes =
       String.concat ~sep:":" (
-       List.map (fun (pid,_,com) ->
+       List.map (fun (pid,com) ->
          Fmt.strf "%a:%s" Repo.pp pid
           (String.with_range ~len:8 (Commit.hash com))
        ) extra_remotes)
@@ -90,24 +90,19 @@ module Opam_builder = struct
     let remotes_ref = ref 0 in
     let dockerfile =
       let open! Dockerfile in
-      let remotes = List.map (fun (pid,_,commit) ->
-        incr remotes_ref;
-        run "opam remote add extra%d https://github.com/%s.git#%s"
-        !remotes_ref (Fmt.strf "%a" Repo.pp pid) (Commit.hash commit)
-        ) extra_remotes in
-      let pins = List.map (run "opam pin add -n %s /home/opam/src") packages in
+      let remotes = Opam_ops.V1.add_remotes extra_remotes in
+      let pins = Opam_ops.V1.add_pins packages in
       from ~tag:(distro^"_ocaml-"^ocaml_version) ("ocaml/opam" ^ (match t.version with |`V2 -> "-dev"|_ ->"")) @@
       workdir "/home/opam/opam-repository" @@
       run "git pull origin master" @@
-      (run "git checkout %s" remote_git_rev @@@ remotes) @@
+      run "git checkout %s" remote_git_rev @@
+      remotes @@
       run "opam update" @@
-      run "git clone git://github.com/%s/%s /home/opam/src"
-        pid.Repo.user pid.Repo.repo @@
+      run "git clone git://github.com/%s/%s /home/opam/src" pid.Repo.user pid.Repo.repo @@
       workdir "/home/opam/src" @@
       run "git fetch origin %s:cibranch" (branch_of_target target) @@
-      (run "git checkout %s" commit @@@ pins) @@
-      run "opam depext -uy %s" (String.concat ~sep:" " packages) @@
-      run "opam install -j 2 -vy %s" (String.concat ~sep:" " packages)
+      run "git checkout %s" commit @@
+      pins
     in
     let open Utils.Infix in
     let open Datakit_path.Infix in
@@ -123,7 +118,7 @@ module Opam_builder = struct
     let proj = project_of_target target in
     let commit = Commit.hash (head_of_target target) in
     let extra = String.concat ~sep:":" 
-       (List.map (fun (pid,_,commit) -> Fmt.strf "%a#%s"
+       (List.map (fun (pid,commit) -> Fmt.strf "%a#%s"
         Repo.pp pid (Commit.hash commit)) extra_remotes) in
     Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%s-%s-%s-%a"
       proj.Repo.user proj.Repo.repo

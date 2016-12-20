@@ -6,13 +6,15 @@
 
 open !Astring
 open Datakit_ci
+open Datakit_github
 open Term.Infix
 
 let build_package t image pkg =
   let open !Dockerfile in
   let dfile =
     from image.Docker_build.sha256 @@
-    run "opam depext -iyv -j 2 %s" pkg in
+    run "opam depext -y %s" pkg @@
+    run "opam install -j 2 -yv %s" pkg in
   let hum = Fmt.strf "opam install %s" pkg in
   Docker_build.run t ~hum dfile
 
@@ -43,7 +45,24 @@ let build_revdeps t run_t packages image =
     l, terms) packages |>
   Term.wait_for_all
 
+module V1 = struct
+  open !Dockerfile
 
+  let add_remotes rs =
+    let remotes_ref = ref 0 in
+    List.map (fun (repo, commit) ->
+     incr remotes_ref;
+     run "opam remote add e%d https://github.com/%s.git#%s"
+       !remotes_ref (Fmt.strf "%a" Repo.pp repo) (Commit.hash commit)
+    ) rs |> fun remotes ->
+    empty @@@ remotes
+
+  let add_pins packages =
+    List.map (run "opam pin add -n %s /home/opam/src") packages |> fun pins ->
+    empty @@@ pins
+end
+
+  
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 

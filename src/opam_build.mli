@@ -17,7 +17,7 @@ type key = {
   distro: string;
   ocaml_version: string;
   remote_git_rev: string;
-  extra_remotes: (Repo.t * string * Commit.t) list;
+  extra_remotes: (Repo.t * Commit.t) list;
 }
 (** [key] captures all the parameters necessary for a reproducible Opam build *)
 

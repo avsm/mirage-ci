@@ -15,6 +15,13 @@ val build_revdeps : Docker_build.t -> Docker_run.t -> string list -> Docker_buil
 val list_revdeps : Docker_run.t -> Docker_build.image -> string -> string list t
 
 val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
+
+module V1 : sig
+  open Datakit_github
+  val add_remotes : (Repo.t * Commit.t) list -> Dockerfile.t
+  val add_pins : string list -> Dockerfile.t
+end
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
           

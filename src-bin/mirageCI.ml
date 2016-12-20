@@ -42,13 +42,15 @@ module Builder = struct
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     Term_utils.term_map_s (fun (repo,branch) ->
       Term.branch_head repo branch >|= fun commit ->
-      (repo,branch,commit)
+      (repo,commit)
     ) extra_remotes >>= fun extra_remotes ->
     let remote_git_rev = Commit.hash opam_repo_commit in
     Term.target target >>= fun target ->
-    let hum = Fmt.(strf "opam install %a" (list ~sep:Format.pp_print_space string) packages) in
+    let pkg_target = String.concat ~sep:" " packages in
+    let hum = Fmt.strf "opam install %s" pkg_target in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
-    Docker_build.run docker_t ~hum
+    Docker_build.run docker_t ~hum >>= fun img ->
+    Opam_ops.build_package docker_t img pkg_target
 
   let run_phases ?(extra_remotes=[]) () target =
     let build = build ~extra_remotes target in
