@@ -60,6 +60,11 @@ module V1 = struct
   let add_pins packages =
     List.map (run "opam pin add -n %s /home/opam/src") packages |> fun pins ->
     empty @@@ pins
+
+  let set_opam_repo_rev rev =
+    workdir "/home/opam/opam-repository" @@
+    run "git pull origin master" @@
+    run "git checkout %s" rev
 end
 
   

@@ -93,9 +93,7 @@ module Opam_builder = struct
       let remotes = Opam_ops.V1.add_remotes extra_remotes in
       let pins = Opam_ops.V1.add_pins packages in
       from ~tag:(distro^"_ocaml-"^ocaml_version) ("ocaml/opam" ^ (match t.version with |`V2 -> "-dev"|_ ->"")) @@
-      workdir "/home/opam/opam-repository" @@
-      run "git pull origin master" @@
-      run "git checkout %s" remote_git_rev @@
+      Opam_ops.V1.set_opam_repo_rev remote_git_rev @@
       remotes @@
       run "opam update" @@
       run "git clone git://github.com/%s/%s /home/opam/src" pid.Repo.user pid.Repo.repo @@

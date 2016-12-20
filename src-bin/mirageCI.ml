@@ -47,7 +47,7 @@ module Builder = struct
     let remote_git_rev = Commit.hash opam_repo_commit in
     Term.target target >>= fun target ->
     let pkg_target = String.concat ~sep:" " packages in
-    let hum = Fmt.strf "opam install %s" pkg_target in
+    let hum = Fmt.strf "base image for opam install %s" pkg_target in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run docker_t ~hum >>= fun img ->
     Opam_ops.build_package docker_t img pkg_target
