@@ -16,9 +16,13 @@ val config : logs:Live_log.manager -> label:string -> pool:Monitored_pool.t -> t
     images. [pool] controls the level of parallel builds allowed, and [timeout]
     is the length in seconds that a run can execute for before being terminated. *)
 
-val run : tag:string -> cmd:string list -> t -> string Term.t
-(** [run t d] will run the [cmd] inside [tag] image using the [t] builder, and
-    return the string output of the command. *)
+val run : ?volumes:(Fpath.t * Fpath.t) list -> tag:string -> cmd:string list -> t -> string Term.t
+(** [run ?volumes t d] will run the [cmd] inside [tag] image using the [t] builder, and
+    return the string output of the command. [volumes] represents a list of host/container volume
+    mappings.  Note that the results of this [docker run] will be cached based on the three
+    keys of [volumes], [tag] and [cmd], so any non-deterministic invocation may not be re-run
+    past the first time.  Volumes in particular are not checksummed in any way, so it is just
+    their paths that are used as keys in the caching. *)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

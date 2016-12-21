@@ -8,14 +8,20 @@ open Datakit_ci
 open! Astring
 open Lwt.Infix
 
-let src = Logs.Src.create "datakit-ci.docker-run" ~doc:"Docker plugin for Datakit_ci"
+let src = Logs.Src.create "datakit-ci.docker-run" ~doc:"Docker_run plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 let ( / ) = Datakit_path.Infix.( / )
 
+type key = {
+  img: string;
+  cmd: string list;
+  volumes: (Fpath.t * Fpath.t) list;
+}
+
 module Docker_run_key = struct
-  type t = string * string list
-  let compare = Pervasives.compare
+ type t = key
+ let compare = Pervasives.compare
 end
 
 module Docker_runner = struct
@@ -32,28 +38,31 @@ module Docker_runner = struct
 
   let name t = "docker-run:" ^ t.label
 
-  let title _t (img,cmd) =
-    Fmt.strf "docker run %s %s" img (String.concat ~sep:" " cmd)
+  let title _t {img;cmd;volumes} =
+    Fmt.strf "docker run %s %s %s" img (String.concat ~sep:" " cmd)
+     (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a" Fpath.pp b) volumes))
 
-  let generate t ~switch ~log trans job_id (img,cmd) =
+  let generate t ~switch ~log trans job_id {img;cmd;volumes} =
     let tee outputs s = List.iter (fun o -> o s) outputs in
     Live_log.log log "Waiting for free pool slot to run";
     Monitored_pool.use ~label:"docker run" t.pool job_id (fun () ->
       Live_log.log log "Pool slot obtained, starting run";
       Utils.with_timeout ~switch t.timeout (fun switch ->
         Live_log.log log "docker run %s %s" img (String.concat ~sep:" " cmd);
-        let cmd = Array.of_list ("docker"::"run"::img::cmd) in
+        let vols = List.flatten (List.map (fun (h,c) -> ["-v";(Fmt.strf "%a:%a" Fpath.pp h Fpath.pp c)]) volumes) in
+        let cmd = Array.of_list ("docker"::"run"::vols@img::cmd) in
         let cmd_output = Buffer.create 1024 in
-        Process.run ~switch ~output:(tee [Buffer.add_string cmd_output;Live_log.write log]) ("",cmd) >>= fun () -> 
-        Lwt.return (Buffer.contents cmd_output)
+        Process.run ~switch ~output:(tee [Buffer.add_string cmd_output;Live_log.write log]) ("",cmd) >|= fun () -> 
+        Buffer.contents cmd_output
       )
     ) >>= fun cmd_output ->
     let open Utils.Infix in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "output") (Cstruct.of_string cmd_output) >>*= fun () ->
     Lwt.return (Ok cmd_output)
 
-  let branch _t (img,cmd) =
-    Fmt.strf "%s:%s" img (String.concat ~sep:" " cmd) |>
+  let branch _t {img;cmd;volumes} =
+    Fmt.strf "%s:%s:%s" img (String.concat ~sep:" " cmd)
+      (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a:%a" Fpath.pp a Fpath.pp b) volumes)) |>
     Digest.string |>
     Digest.to_hex |>
     Fmt.strf "docker-run-%s"
@@ -70,10 +79,10 @@ type t = Docker_run_cache.t
 let config ~logs ~label ~pool ~timeout =
   Docker_run_cache.create ~logs { Docker_runner.label; pool; timeout }
 
-let run ~tag ~cmd config =
+let run ?(volumes=[]) ~tag ~cmd config =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  Docker_run_cache.find config job_id (tag,cmd)
+  Docker_run_cache.find config job_id {img=tag;cmd;volumes}
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
