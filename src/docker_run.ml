@@ -50,7 +50,7 @@ module Docker_runner = struct
       Utils.with_timeout ~switch t.timeout (fun switch ->
         Live_log.log log "docker run %s %s" img (String.concat ~sep:" " cmd);
         let vols = List.flatten (List.map (fun (h,c) -> ["-v";(Fmt.strf "%a:%a" Fpath.pp h Fpath.pp c)]) volumes) in
-        let cmd = Array.of_list ("docker"::"run"::vols@img::cmd) in
+        let cmd = Array.of_list ("docker"::"run"::"--rm"::"--tmpfs"::"/tmp"::vols@img::cmd) in
         let cmd_output = Buffer.create 1024 in
         Process.run ~switch ~output:(tee [Buffer.add_string cmd_output;Live_log.write log]) ("",cmd) >|= fun () -> 
         Buffer.contents cmd_output
