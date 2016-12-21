@@ -79,7 +79,7 @@ module V1 = struct
     in
     Docker_build.run docker_build_t ~hum dfile >>= fun img ->
     let cmd = ["opam"; "admin"; "make"] in
-    Docker_run.run ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
 end
   
 (*---------------------------------------------------------------------------
