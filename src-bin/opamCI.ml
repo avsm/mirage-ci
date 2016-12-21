@@ -58,8 +58,8 @@ module Builder = struct
       Term_utils.report ~order:2 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
       Term_utils.report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
 *)
-      Term_utils.report ~order:1 ~label:"archive" archive_build;
-      Term_utils.report ~order:1 ~label:"archive" archive_build_v2;
+      Term_utils.report ~order:1 ~label:"opam1 archive" archive_build;
+      Term_utils.report ~order:2 ~label:"opam2 archive" archive_build_v2;
     ] in
     match Target.id target with
     |`Ref ["heads";"bulk"] -> all_tests
