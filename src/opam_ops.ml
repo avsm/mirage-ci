@@ -118,7 +118,7 @@ module V2 = struct
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
 
   let run_package ?volume t image pkg =
-    let cmd = ["opam";"depext";"-ivyj 2";pkg] in
+    let cmd = ["opam";"depext";"-ivyj";"2";pkg] in
     let volumes =
       match volume with
       | None -> []
