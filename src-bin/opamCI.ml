@@ -47,6 +47,11 @@ module Builder = struct
       let git_rev = Commit.hash h in
       Opam_ops.V1.build_archive ~volume:(Fpath.v "opam-archive") docker_t docker_run_t git_rev
     in
+    let archive_build_v2 =
+      Term.head target >>= fun h ->
+      let git_rev = Commit.hash h in
+      Opam_ops.V2.build_archive ~volume:(Fpath.v "opam2-archive") docker_t docker_run_t git_rev
+    in
     let all_tests = [
 (*
       Term_utils.report ~order:1 ~label:"4.03.0" (bulk_build ~ocaml_version:"4.03.0");
@@ -54,6 +59,7 @@ module Builder = struct
       Term_utils.report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
 *)
       Term_utils.report ~order:1 ~label:"archive" archive_build;
+      Term_utils.report ~order:1 ~label:"archive" archive_build_v2;
     ] in
     match Target.id target with
     |`Ref ["heads";"bulk"] -> all_tests
