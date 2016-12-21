@@ -78,7 +78,7 @@ module V1 = struct
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
     in
     Docker_build.run docker_build_t ~hum dfile >>= fun img ->
-    let cmd = ["opam"; "admin"; "make"] in
+    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
 end
   
