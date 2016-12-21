@@ -65,8 +65,22 @@ module V1 = struct
     workdir "/home/opam/opam-repository" @@
     run "git pull origin master" @@
     run "git checkout %s" rev
-end
 
+  let build_archive ?volume docker_build_t docker_run_t rev =
+    let dfile =
+      let open Dockerfile in
+      from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam" @@
+      set_opam_repo_rev rev in
+    let hum = Fmt.strf "base image for opam archive (%s)" (String.with_range ~len:6 rev) in
+    let volumes =
+      match volume with
+      | None -> []
+      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
+    in
+    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
+    let cmd = ["opam"; "admin"; "make"] in
+    Docker_run.run ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+end
   
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

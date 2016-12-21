@@ -21,6 +21,7 @@ module V1 : sig
   val add_remotes : (Repo.t * Commit.t) list -> Dockerfile.t
   val add_pins : string list -> Dockerfile.t
   val set_opam_repo_rev : string -> Dockerfile.t
+  val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
 end
 
 (*---------------------------------------------------------------------------

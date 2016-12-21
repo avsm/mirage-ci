@@ -19,7 +19,6 @@ module Builder = struct
   let one_hour = 60. *. 60.
   let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
   let primary_ocaml_version = "4.03.0"
-
   let pool = Monitored_pool.create "docker" 2
 
   (* XXX TODO temporary until we can query package list automatically *)
