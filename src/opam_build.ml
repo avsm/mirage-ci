@@ -87,7 +87,6 @@ module Opam_builder = struct
   let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
     let pid = project_of_target target in
     let commit = Commit.hash (head_of_target target) in
-    let remotes_ref = ref 0 in
     let dockerfile =
       let open! Dockerfile in
       let remotes = Opam_ops.V1.add_remotes extra_remotes in
