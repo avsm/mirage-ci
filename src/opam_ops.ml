@@ -64,7 +64,8 @@ module V1 = struct
   let set_opam_repo_rev rev =
     workdir "/home/opam/opam-repository" @@
     run "git pull origin master" @@
-    run "git checkout %s" rev
+    run "git checkout %s" rev @@
+    run "opam update -uy"
 
   let build_archive ?volume docker_build_t docker_run_t rev =
     let dfile =
@@ -79,6 +80,38 @@ module V1 = struct
     in
     Docker_build.run docker_build_t ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+end
+
+module V2 = struct
+  open !Dockerfile
+
+  let add_remotes = V1.add_remotes
+  let add_pins = V1.add_pins
+
+  let set_opam_repo_rev rev =
+    workdir "/home/opam/opam-repository" @@
+    run "git checkout master" @@
+    run "git pull origin master" @@
+    run "git branch -D v2" @@
+    run "git checkout -b v2 %s" rev @@
+    run "opam admin upgrade-format" @@
+    run "git add ." @@
+    run "git commit -a -m 'upgrade format to opam2'" @@
+    run "opam update -uy"
+
+  let build_archive ?volume docker_build_t docker_run_t rev =
+    let dfile =
+      from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
+      set_opam_repo_rev rev in
+    let hum = Fmt.strf "base image for opam2 archive (%s)" (String.with_range ~len:6 rev) in
+    let volumes =
+      match volume with
+      | None -> []
+      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
+    in
+    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
+    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/cache && opam admin make"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
 end
   
