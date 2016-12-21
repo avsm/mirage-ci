@@ -27,20 +27,9 @@ module Builder = struct
     let distro = "ubuntu-16.04" in
     let base_dfile ~ocaml_version ~git_rev = 
       let open Dockerfile in
-      from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam" @@
-      workdir "/home/opam/opam-repository" @@
-      run "git pull origin master" @@
-      run "git checkout %s" git_rev @@
-      run "opam repo set-url default http://opamarchive:8081" @@
-      run "opam update" @@
+      from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev" @@
+      Opam_ops.V2.set_opam_repo_rev git_rev @@
       run "opam depext -uivy ocamlfind ocamlbuild camlp4"
-    in
-    let bulk_build ~ocaml_version =
-      Term.head target >>= fun h -> 
-      let git_rev = Commit.hash h in
-      Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s (%s)" ocaml_version git_rev) (base_dfile ~ocaml_version ~git_rev)
-      >>= fun img -> Opam_ops.list_all_packages docker_run_t img
-      >>= Opam_ops.build_packages docker_t img
     in
     let archive_build =
       Term.head target >>= fun h ->
@@ -52,14 +41,20 @@ module Builder = struct
       let git_rev = Commit.hash h in
       Opam_ops.V2.build_archive ~volume:(Fpath.v "opam2-archive") docker_t docker_run_t git_rev
     in
+    let bulk_build ~ocaml_version =
+      Term_utils.after archive_build_v2 >>= fun () ->
+      Term.head target >>= fun h -> 
+      let git_rev = Commit.hash h in
+      Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s (%s)" ocaml_version git_rev) (base_dfile ~ocaml_version ~git_rev)
+      >>= fun img -> Opam_ops.list_all_packages docker_run_t img
+      >>= Opam_ops.V2.run_packages ~volume:(Fpath.v "opam2-archive") docker_run_t img
+    in
     let all_tests = [
-(*
-      Term_utils.report ~order:1 ~label:"4.03.0" (bulk_build ~ocaml_version:"4.03.0");
-      Term_utils.report ~order:2 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
-      Term_utils.report ~order:3 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
-*)
       Term_utils.report ~order:1 ~label:"opam1 archive" archive_build;
       Term_utils.report ~order:2 ~label:"opam2 archive" archive_build_v2;
+      Term_utils.report ~order:3 ~label:"4.03.0" (bulk_build ~ocaml_version:"4.03.0");
+      Term_utils.report ~order:4 ~label:"4.04.0" (bulk_build ~ocaml_version:"4.04.0");
+      Term_utils.report ~order:5 ~label:"4.02.3" (bulk_build ~ocaml_version:"4.02.3");
     ] in
     match Target.id target with
     |`Ref ["heads";"bulk"] -> all_tests

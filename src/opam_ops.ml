@@ -103,7 +103,9 @@ module V2 = struct
   let build_archive ?volume docker_build_t docker_run_t rev =
     let dfile =
       from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
-      set_opam_repo_rev rev in
+      set_opam_repo_rev rev @@
+      run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
+    in
     let hum = Fmt.strf "base image for opam2 archive (%s)" (String.with_range ~len:6 rev) in
     let volumes =
       match volume with
@@ -113,6 +115,24 @@ module V2 = struct
     Docker_build.run docker_build_t ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/cache && opam admin make"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+
+  let run_package ?volume t image pkg =
+    let cmd = ["opam";"depext";"-ivyj 2";pkg] in
+    let volumes =
+      match volume with
+      | None -> []
+      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
+    in
+    Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~cmd t
+
+  let run_packages ?volume t image pkgs =
+    List.map (fun pkg ->
+      let t = run_package ?volume t image pkg in
+      pkg, t
+    ) pkgs |>
+    Term.wait_for_all |>
+    Term_utils.ignore_failure ~on_fail:(fun _ -> ())
+
 end
   
 (*---------------------------------------------------------------------------
