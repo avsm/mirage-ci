@@ -27,9 +27,10 @@ let build_packages t image pkgs =
   Term_utils.ignore_failure ~on_fail:(fun _ -> ())
 
 let list_all_packages t image =
-  let cmd = ["opam";"list";"-a";"-s"] in
+  let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
   Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
-  String.cuts ~empty:false ~sep:"\n"
+  String.cuts ~empty:false ~sep:"\n" >|=
+  List.map (fun s -> String.trim s)
 
 let list_revdeps t image pkg =
   let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
