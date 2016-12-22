@@ -119,7 +119,7 @@ let web_config =
   Web.config
     ~name:"mirage-ci"
     ~can_read:ACL.(everyone)
-    ~can_build:ACL.(username "admin")
+    ~can_build:ACL.(github_org "mirage")
     ~state_repo:(Uri.of_string "https://github.com/mirage/mirage-ci.logs")
     ()
 
