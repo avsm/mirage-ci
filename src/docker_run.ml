@@ -17,6 +17,7 @@ type key = {
   img: string;
   cmd: string list;
   volumes: (Fpath.t * Fpath.t) list;
+  hum: string;
 }
 
 module Docker_run_key = struct
@@ -38,9 +39,7 @@ module Docker_runner = struct
 
   let name t = "docker-run:" ^ t.label
 
-  let title _t {img;cmd;volumes} =
-    Fmt.strf "docker run %s %s %s" img (String.concat ~sep:" " cmd)
-     (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a" Fpath.pp b) volumes))
+  let title _t {hum;_} = hum
 
   let generate t ~switch ~log trans job_id {img;cmd;volumes} =
     let tee outputs s = List.iter (fun o -> o s) outputs in
@@ -60,7 +59,7 @@ module Docker_runner = struct
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "output") (Cstruct.of_string cmd_output) >>*= fun () ->
     Lwt.return (Ok cmd_output)
 
-  let branch _t {img;cmd;volumes} =
+  let branch _t {img;cmd;volumes;hum} =
     Fmt.strf "%s:%s:%s" img (String.concat ~sep:" " cmd)
       (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a:%a" Fpath.pp a Fpath.pp b) volumes)) |>
     Digest.string |>
@@ -79,10 +78,11 @@ type t = Docker_run_cache.t
 let config ~logs ~label ~pool ~timeout =
   Docker_run_cache.create ~logs { Docker_runner.label; pool; timeout }
 
-let run ?(volumes=[]) ~tag ~cmd config =
+let run ?(volumes=[]) ?hum ~tag ~cmd config =
   let open! Term.Infix in
+  let hum = match hum with None -> String.concat ~sep:" " cmd | Some h -> h in
   Term.job_id >>= fun job_id ->
-  Docker_run_cache.find config job_id {img=tag;cmd;volumes}
+  Docker_run_cache.find config job_id {img=tag;hum;cmd;volumes}
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
