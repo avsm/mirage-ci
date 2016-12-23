@@ -52,27 +52,46 @@ module Builder = struct
       >>= fun results ->
       let rec fn rs acc =
         match rs with
-        |(n,t,b)::tl ->
-           (Term.state t >>= function
-            | Ok _ -> fn tl ((n,true,b) :: acc)
-            | Error _ -> fn tl ((n,false,b) :: acc))
+        |(package,t,log_branch)::tl ->
+           (Term.state t >>= fun t ->
+            let success = match t with Ok _ -> true |_ -> false in
+            let open Opam_bulk_build in
+            let r = {ocaml_version;distro;package;success;log_branch} in
+            fn tl (r::acc))
         |[] -> Term.return (List.rev acc)
       in 
-      fn results [] >>= fun results ->
-      let results =
-        let open Opam_bulk_build in
-        List.map (fun (package, success, log_branch) ->
-          { ocaml_version; distro; package; success; log_branch }
-        ) results
-      in
-      Opam_bulk_build.run opam_bulk_t results
+      fn results []
     in
-    let all_tests = [
-      Term_utils.report ~order:1 ~label:"opam2 archive" archive_build_v2;
-      Term_utils.report ~order:2 ~label:"Ubuntu-4.03.0" (bulk_build ~distro:"ubuntu-16.04" ~ocaml_version:"4.03.0");
-      Term_utils.report ~order:3 ~label:"Ubuntu-4.04.0" (bulk_build ~distro:"ubuntu-16.04" ~ocaml_version:"4.04.0");
-      Term_utils.report ~order:4 ~label:"Ubuntu-4.02.3" (bulk_build ~distro:"ubuntu-16.04" ~ocaml_version:"4.02.3");
-    ] in
+    let order = ref 1 in
+    let tests, results =
+      let ocaml_versions = ["4.03.0";"4.04.0";"4.02.3"] in
+      let distros = ["ubuntu-16.04"] in
+      let results = ref [] in
+      let ts = List.flatten (
+        List.map (fun distro ->
+          List.map (fun ocaml_version ->
+            incr order;
+            let t = bulk_build ~distro ~ocaml_version in
+            let label = Fmt.strf "%s-%s" distro ocaml_version in
+            results := t :: !results;
+            Term_utils.report ~order:!order ~label t
+          ) ocaml_versions
+        ) distros)
+      in
+      let results =
+        let rec fn l acc =
+          match l with
+          |hd::tl -> hd >>= fun t -> fn tl (t @ acc)
+          |[] -> Term.return (List.rev acc) in
+        fn !results [] >>=
+        Opam_bulk_build.run opam_bulk_t
+      in
+      ts, results in
+    let all_tests =
+      (Term_utils.report ~order:1 ~label:"opam2 archive" archive_build_v2) ::
+      (Term_utils.report ~order:!order ~label:"Summary" results ) ::
+      tests
+    in
     match Target.id target with
     |`Ref ["heads";"bulk"] -> all_tests
     | _ -> []
