@@ -14,7 +14,6 @@ val build_revdeps : Docker_build.t -> Docker_run.t -> string list -> Docker_buil
 
 val list_revdeps : Docker_run.t -> Docker_build.image -> string -> string list t
 
-val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
 
 module V1 : sig
   open Datakit_github
@@ -22,6 +21,7 @@ module V1 : sig
   val add_pins : string list -> Dockerfile.t
   val set_opam_repo_rev : string -> Dockerfile.t
   val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
+  val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
 end
 
 module V2 : sig
@@ -32,6 +32,7 @@ module V2 : sig
   val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
   val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t
   val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> unit t
+  val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
 end
 
 (*---------------------------------------------------------------------------

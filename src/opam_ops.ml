@@ -26,12 +26,6 @@ let build_packages t image pkgs =
   Term.wait_for_all |>
   Term_utils.ignore_failure ~on_fail:(fun _ -> ())
 
-let list_all_packages t image =
-  let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
-  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
-  String.cuts ~empty:false ~sep:"\n" >|=
-  List.map (fun s -> String.trim s)
-
 let list_revdeps t image pkg =
   let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
   Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
@@ -82,6 +76,13 @@ module V1 = struct
     Docker_build.run docker_build_t ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+
+  let list_all_packages t image =
+    let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
+    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+    String.cuts ~empty:false ~sep:"\n" >|=
+    List.map (fun s -> String.trim s)
+
 end
 
 module V2 = struct
@@ -134,6 +135,11 @@ module V2 = struct
     Term.wait_for_all |>
     Term_utils.ignore_failure ~on_fail:(fun _ -> ())
 
+  let list_all_packages t image =
+    let cmd = ["opam";"list";"-a";"-s";"--color=never";"--installable"] in
+    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+    String.cuts ~empty:false ~sep:"\n" >|=
+    List.map (fun s -> String.trim s)
 end
   
 (*---------------------------------------------------------------------------

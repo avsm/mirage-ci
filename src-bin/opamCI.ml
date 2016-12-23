@@ -47,7 +47,7 @@ module Builder = struct
       Term.head target >>= fun h -> 
       let git_rev = Commit.hash h in
       Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s (%s)" ocaml_version git_rev) (base_dfile ~ocaml_version ~git_rev)
-      >>= fun img -> Opam_ops.list_all_packages docker_run_t img
+      >>= fun img -> Opam_ops.V2.list_all_packages docker_run_t img
       >>= Opam_ops.V2.run_packages ~volume:(Fpath.v "opam2-archive") docker_run_t img
     in
     let all_tests = [
