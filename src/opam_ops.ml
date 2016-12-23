@@ -134,7 +134,8 @@ module V2 = struct
       let t, branch = run_package ?volume t image pkg in
       pkg, t, branch
     ) pkgs |> fun r ->
-    Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) >>= fun () ->
+    Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) |>
+    Term_utils.ignore_failure ~on_fail:(fun _ -> ()) >>= fun () ->
     Term.return r
 
   let list_all_packages t image =
