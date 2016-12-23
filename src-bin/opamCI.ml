@@ -81,15 +81,15 @@ module Builder = struct
       let results =
         let rec fn l acc =
           match l with
-          |hd::tl -> hd >>= fun t -> fn tl (t @ acc)
+          |hd::tl -> Term.without_logs hd >>= fun t -> fn tl (t @ acc)
           |[] -> Term.return (List.rev acc) in
         fn !results [] >>=
         Opam_bulk_build.run opam_bulk_t
       in
       ts, results in
     let all_tests =
-      (Term_utils.report ~order:1 ~label:"opam2 archive" archive_build_v2) ::
-      (Term_utils.report ~order:(!order+1) ~label:"Summary" results ) ::
+      (Term_utils.report ~order:0 ~label:"Summary" results) ::
+      (Term_utils.report ~order:1 ~label:"OPAM2 archive" archive_build_v2) ::
       tests
     in
     match Target.id target with
@@ -108,7 +108,7 @@ let web_config =
     ~name:"opam-ci"
     ~can_read:ACL.(everyone)
     ~can_build:ACL.(username "admin")
-    ~state_repo:(Uri.of_string "https://github.com/mirage/opam-ci.logs")
+    ~state_repo:(Uri.of_string "https://github.com/avsm/ocaml-ci.logs")
     ()
 
 let () =
