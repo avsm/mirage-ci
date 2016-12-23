@@ -67,39 +67,30 @@ module Docker_builder = struct
       Utils.with_timeout ~switch t.timeout fn
     )
 
-  let check_docker_status = function
-  | Unix.WEXITED 0 -> ()
-  | Unix.WEXITED n -> Utils.failf "Build exit %d" n
-  | Unix.WSIGNALED x -> Utils.failf "Signal %d" x
-  | Unix.WSTOPPED x -> Utils.failf "Stopped %d" x
-
   let generate t ~switch ~log trans job_id {dockerfile;hum;tag} =
-    let dockerfile_str = Dockerfile.string_of_t dockerfile in
-    let digest = Digest.string dockerfile_str |> Digest.to_hex in
+    let digest = digest_of_dockerfile dockerfile in
     let output = Live_log.write log in
+    let builton = string_of_float (Unix.gettimeofday ()) in
+    let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
+    let network_cli = match t.network with None -> "" | Some n -> " --network " ^ n in
+    let tag_cli = match tag with None -> "" | Some t -> " -t " ^ t in
+    let images_output = Buffer.create 1024 in
     Utils.with_tmpdir (fun tmp_dir ->
       Dockerfile_distro.generate_dockerfile ~crunch:true tmp_dir dockerfile;
-      let fname = tmp_dir ^ "/Dockerfile" in
-      let builton = string_of_float (Unix.gettimeofday ()) in
-      let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
-      run_long_cmd ~switch t job_id (fun switch ->
-        let network = match t.network with None -> "" | Some n -> " --network " ^ n in
-        let tag = match tag with None -> "" | Some t -> " -t " ^ t in
-        let cmd = Printf.sprintf "docker build%s %s%s --no-cache --rm --force-rm - < %s" network label tag fname in
-        Process.run_with_exit_status ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun exit_status ->
-        check_docker_status exit_status;
-        let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
-        let images_output = Buffer.create 1024 in
-        Process.run ~switch ~output:(Buffer.add_string images_output) ("",[|"sh";"-c";cmd|]) >|= fun () ->
-        Buffer.contents images_output |> fun sha256 -> String.trim sha256
-      ) >>= fun sha256 ->
-      let open Utils.Infix in
-      DK.Transaction.create_or_replace_file trans (Cache.Path.value / "sha256") (Cstruct.of_string sha256) >>*= fun () ->
-      DK.Transaction.create_or_replace_file trans (Cache.Path.value / "tag") (Cstruct.of_string (match tag with None -> "" | Some t -> t)) >>*= fun () ->
-      DK.Transaction.create_or_replace_file trans (Cache.Path.value / "label") (Cstruct.of_string hum) >>*= fun () ->
-      output (Fmt.strf "Recorded container%s (%s)" (match tag with None -> "" | Some t -> Fmt.strf " with tag %s " t) sha256);
-      Lwt.return (Ok {sha256; tag; hum} )
-    )
+      Monitored_pool.use ~log ~label:"docker build" t.pool job_id (fun () ->
+        Utils.with_timeout ~switch t.timeout (fun switch ->
+          let cmd = Printf.sprintf "docker build%s %s%s --no-cache --rm --force-rm - < %s/Dockerfile" network_cli label tag_cli tmp_dir in
+          Process.run ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun () ->
+          let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
+          Process.run ~switch ~output:(Buffer.add_string images_output) ("",[|"sh";"-c";cmd|]))
+      )) >>= fun () ->
+    let sha256 = Buffer.contents images_output |> String.trim in
+    let open Utils.Infix in
+    DK.Transaction.create_or_replace_file trans (Cache.Path.value / "sha256") (Cstruct.of_string sha256) >>*= fun () ->
+    DK.Transaction.create_or_replace_file trans (Cache.Path.value / "tag") (Cstruct.of_string (match tag with None -> "" | Some t -> t)) >>*= fun () ->
+    DK.Transaction.create_or_replace_file trans (Cache.Path.value / "label") (Cstruct.of_string hum) >>*= fun () ->
+    output (Fmt.strf "Recorded container%s (%s)" (match tag with None -> "" | Some t -> Fmt.strf " with tag %s " t) sha256);
+    Lwt.return (Ok {sha256; tag; hum} )
 
   let branch _t {dockerfile;_} =
     digest_of_dockerfile dockerfile |>

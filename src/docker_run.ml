@@ -38,20 +38,17 @@ module Docker_runner = struct
   type value = string
 
   let name t = "docker-run:" ^ t.label
-
   let title _t {hum;_} = hum
 
   let generate t ~switch ~log trans job_id {img;cmd;volumes} =
     let tee outputs s = List.iter (fun o -> o s) outputs in
-    Live_log.log log "Waiting for free pool slot to run";
-    Monitored_pool.use ~label:"docker run" t.pool job_id (fun () ->
-      Live_log.log log "Pool slot obtained, starting run";
+    let vols = List.flatten (List.map (fun (h,c) -> ["-v";(Fmt.strf "%a:%a" Fpath.pp h Fpath.pp c)]) volumes) in
+    let cmd = Array.of_list ("docker"::"run"::"--rm"::"--tmpfs"::"/tmp"::vols@img::cmd) in
+    let cmd_output = Buffer.create 1024 in
+    let output = tee [ Buffer.add_string cmd_output; Live_log.write log ] in
+    Monitored_pool.use ~log ~label:"docker run" t.pool job_id (fun () ->
       Utils.with_timeout ~switch t.timeout (fun switch ->
-        Live_log.log log "docker run %s %s" img (String.concat ~sep:" " cmd);
-        let vols = List.flatten (List.map (fun (h,c) -> ["-v";(Fmt.strf "%a:%a" Fpath.pp h Fpath.pp c)]) volumes) in
-        let cmd = Array.of_list ("docker"::"run"::"--rm"::"--tmpfs"::"/tmp"::vols@img::cmd) in
-        let cmd_output = Buffer.create 1024 in
-        Process.run ~switch ~output:(tee [Buffer.add_string cmd_output;Live_log.write log]) ("",cmd) >|= fun () -> 
+        Process.run ~switch ~output ("",cmd) >|= fun () -> 
         Buffer.contents cmd_output
       )
     ) >>= fun cmd_output ->
@@ -62,9 +59,7 @@ module Docker_runner = struct
   let branch _t {img;cmd;volumes;hum} =
     Fmt.strf "%s:%s:%s" img (String.concat ~sep:" " cmd)
       (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a:%a" Fpath.pp a Fpath.pp b) volumes)) |>
-    Digest.string |>
-    Digest.to_hex |>
-    Fmt.strf "docker-run-%s"
+    Digest.string |> Digest.to_hex |> Fmt.strf "docker-run-%s"
 
   let load _t tr _key =
     let open Utils.Infix in
