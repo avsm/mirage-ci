@@ -25,6 +25,8 @@ val run : ?volumes:(Fpath.t * Fpath.t) list -> ?hum:string -> tag:string -> cmd:
     their paths that are used as keys in the caching. [hum] is an optional human-readable
     description of the command for the UI. *)
 
+val branch : ?volumes:(Fpath.t * Fpath.t) list -> tag:string -> cmd:string list -> unit -> string
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 

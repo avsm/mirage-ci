@@ -25,6 +25,11 @@ module Docker_run_key = struct
  let compare = Pervasives.compare
 end
 
+let branch {img;cmd;volumes;_} =
+  Fmt.strf "%s:%s:%s" img (String.concat ~sep:" " cmd)
+    (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a:%a" Fpath.pp a Fpath.pp b) volumes)) |>
+  Digest.string |> Digest.to_hex |> Fmt.strf "docker-run-%s"
+
 module Docker_runner = struct
   type t = {
     label: string;
@@ -56,10 +61,7 @@ module Docker_runner = struct
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "output") (Cstruct.of_string cmd_output) >>*= fun () ->
     Lwt.return (Ok cmd_output)
 
-  let branch _t {img;cmd;volumes;hum} =
-    Fmt.strf "%s:%s:%s" img (String.concat ~sep:" " cmd)
-      (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a:%a" Fpath.pp a Fpath.pp b) volumes)) |>
-    Digest.string |> Digest.to_hex |> Fmt.strf "docker-run-%s"
+  let branch _t = branch
 
   let load _t tr _key =
     let open Utils.Infix in
@@ -78,6 +80,9 @@ let run ?(volumes=[]) ?hum ~tag ~cmd config =
   let hum = match hum with None -> String.concat ~sep:" " cmd | Some h -> h in
   Term.job_id >>= fun job_id ->
   Docker_run_cache.find config job_id {img=tag;hum;cmd;volumes}
+
+let branch ?(volumes=[]) ~tag ~cmd () =
+  branch {img=tag;hum="";cmd;volumes}
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

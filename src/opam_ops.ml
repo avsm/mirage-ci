@@ -125,15 +125,17 @@ module V2 = struct
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
     in
-    Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~cmd t
+    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~cmd t in
+    let b = Docker_run.branch ~volumes ~tag:image.Docker_build.sha256 ~cmd () in
+    r, b
 
   let run_packages ?volume t image pkgs =
     List.map (fun pkg ->
-      let t = run_package ?volume t image pkg in
-      pkg, t
-    ) pkgs |>
-    Term.wait_for_all |>
-    Term_utils.ignore_failure ~on_fail:(fun _ -> ())
+      let t, branch = run_package ?volume t image pkg in
+      pkg, t, branch
+    ) pkgs |> fun r ->
+    Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) >>= fun () ->
+    Term.return r
 
   let list_all_packages t image =
     let cmd = ["opam";"list";"-a";"-s";"--color=never";"--installable"] in

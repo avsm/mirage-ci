@@ -30,8 +30,8 @@ module V2 : sig
   val add_pins : string list -> Dockerfile.t
   val set_opam_repo_rev : string -> Dockerfile.t
   val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
-  val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t
-  val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> unit t
+  val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t * string
+  val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
   val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
 end
 
