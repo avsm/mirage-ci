@@ -87,8 +87,10 @@ module Builder = struct
               | _ -> Term.without_logs hd >>= fun t -> fn tl (t @ acc)
           end
           | [] -> Term.return (List.rev acc) in
-        fn !results [] >>=
-        Opam_bulk_build.run opam_bulk_t
+        let t = Term.without_logs (fn !results []) in
+        Term.state t >>= function
+        | Error (`Pending _) -> Term.pending "Waiting for all builds to complete"
+        | _ -> t >>= Opam_bulk_build.run opam_bulk_t
       in
       ts, results in
     let all_tests =
