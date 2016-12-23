@@ -65,7 +65,7 @@ module Builder = struct
     let order = ref 1 in
     let tests, results =
       let ocaml_versions = ["4.03.0";"4.04.0";"4.02.3"] in
-      let distros = ["ubuntu-16.04"] in
+      let distros = ["ubuntu-16.04"; "alpine-3.4" ] in
       let results = ref [] in
       let ts = List.flatten (
         List.map (fun distro ->
