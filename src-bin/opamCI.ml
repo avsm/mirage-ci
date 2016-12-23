@@ -89,7 +89,7 @@ module Builder = struct
       ts, results in
     let all_tests =
       (Term_utils.report ~order:1 ~label:"opam2 archive" archive_build_v2) ::
-      (Term_utils.report ~order:!order ~label:"Summary" results ) ::
+      (Term_utils.report ~order:(!order+1) ~label:"Summary" results ) ::
       tests
     in
     match Target.id target with
