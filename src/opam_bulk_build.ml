@@ -47,7 +47,8 @@ module Opam_bulk_builder = struct
     let results = Sexplib.Sexp.to_string_hum (sexp_of_keys results) in
     Live_log.write log results;
     let open Utils.Infix in
-    DK.Transaction.create_or_replace_file trans (Cache.Path.value / "results.sexp") (Cstruct.of_string results) >>*= fun () ->
+    DK.Transaction.create_or_replace_file trans (Cache.Path.value / "results.sexp")
+      (Cstruct.of_string results) >>*= fun () ->
     Lwt.return (Ok results)
 
   let branch _t results =

@@ -81,8 +81,12 @@ module Builder = struct
       let results =
         let rec fn l acc =
           match l with
-          |hd::tl -> Term.without_logs hd >>= fun t -> fn tl (t @ acc)
-          |[] -> Term.return (List.rev acc) in
+          | hd::tl -> begin
+              Term.state hd >>= function
+              | Error (`Pending _) -> Term.pending "Waiting for jobs to complete"
+              | _ -> Term.without_logs hd >>= fun t -> fn tl (t @ acc)
+          end
+          | [] -> Term.return (List.rev acc) in
         fn !results [] >>=
         Opam_bulk_build.run opam_bulk_t
       in
