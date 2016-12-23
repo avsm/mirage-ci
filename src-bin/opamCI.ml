@@ -83,7 +83,7 @@ module Builder = struct
           match l with
           | hd::tl -> begin
               Term.state hd >>= function
-              | Error (`Pending _) -> Term.pending "Waiting for jobs to complete"
+              | Error (`Pending _) -> Term.pending "Waiting for jobs to complete (%d done)" (List.length acc)
               | _ -> Term.without_logs hd >>= fun t -> fn tl (t @ acc)
           end
           | [] -> Term.return (List.rev acc) in
