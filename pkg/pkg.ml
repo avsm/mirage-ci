@@ -11,4 +11,5 @@ let () =
     Pkg.bin "src-bin/avsmCI";
     Pkg.bin "src-bin/opamCI";
     Pkg.bin "src-bin/datakitToml";
+    Pkg.bin "src-bin/opam-bulk-scry";
   ]

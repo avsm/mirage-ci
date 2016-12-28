@@ -6,3 +6,4 @@ true : package(ppx_sexp_conv)
 <test> : include
 <_checkouts> : -traverse
 <data>: -traverse
+<src-bin/opam-*>: package(irmin.unix)
