@@ -111,13 +111,9 @@ module Builder = struct
 
   let build_repo_diff target =
     let build_pr_diff =
-      let opam_slug = Fmt.strf "%a" Repo.pp (Target.repo target) in
-      match Target.id target with
-      |`Ref _ -> Term.fail "Skipping, can only build PRs"
-      |`PR pr_num ->
-         Opam_ops.packages_from_diff ~opam_slug ~pr_num docker_pull_t docker_run_t >>= fun pkgs ->
-         let p = String.concat ~sep:" " pkgs in
-         Term.return p
+       Opam_ops.packages_from_diff target docker_pull_t docker_run_t >>= fun pkgs ->
+       let p = String.concat ~sep:" " pkgs in
+       Term.return p
     in
     match Target.id target with
     | `PR pr -> [Term_utils.report ~order:1 ~label:"Build" build_pr_diff]

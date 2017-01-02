@@ -14,7 +14,7 @@ val build_revdeps : Docker_build.t -> Docker_run.t -> string list -> Docker_buil
 
 val list_revdeps : Docker_run.t -> Docker_build.image -> string -> string list t
 
-val packages_from_diff : opam_slug:string -> pr_num:int -> Docker_pull.t -> Docker_run.t -> string list t
+val packages_from_diff : Datakit_ci.Target.t -> Docker_pull.t -> Docker_run.t -> string list t
 
 module V1 : sig
   open Datakit_github
