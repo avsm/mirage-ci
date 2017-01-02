@@ -38,8 +38,8 @@ module Builder = struct
     | _ -> failwith "TODO package_of_repo"
 
   (* base building *)
-  let build ?(extra_remotes=[]) target distro ocaml_version =
-    let packages = packages_of_repo target in
+  let build ?(extra_remotes=[]) ?packages target distro ocaml_version =
+    let packages = match packages with None -> packages_of_repo target | Some p -> p in
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     Term_utils.term_map_s (fun (repo,branch) ->
       Term.branch_head repo branch >|= fun commit ->
@@ -110,10 +110,15 @@ module Builder = struct
     | _ -> []
 
   let build_repo_diff target =
+    let extra_remotes = [ mirage_dev_remote ] in
     let build_pr_diff =
        Opam_ops.packages_from_diff target docker_pull_t docker_run_t >>= fun pkgs ->
-       let p = String.concat ~sep:" " pkgs in
-       Term.return p
+       let builds = 
+         List.map (fun pkg ->
+           let t = build ~packages:[pkg] ~extra_remotes target "ubuntu-16.04" "4.03.0" in
+           pkg, t
+         ) pkgs in
+       Term.wait_for_all builds
     in
     match Target.id target with
     | `PR pr -> [Term_utils.report ~order:1 ~label:"Build" build_pr_diff]
