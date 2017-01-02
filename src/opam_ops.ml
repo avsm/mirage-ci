@@ -141,9 +141,9 @@ let packages_from_diff {pull_t;run_t;_} target =
   |`Ref _ -> Term.fail "Skipping, can only build PRs"
   |`PR pr_num ->
     let time = Ptime_clock.now () in
-    Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time pull_t >>= fun img ->
+(*    Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time pull_t >>= fun img -> *)
     let cmd = [opam_slug; string_of_int pr_num] in
-    Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
+    Docker_run.run ~tag:"unikernel/mirage-ci:opam-diff" ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
 let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~ocaml_version ~typ ~opam_t ~docker_t () =
