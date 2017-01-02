@@ -28,7 +28,7 @@ module Builder = struct
     let base_dfile ~distro ~ocaml_version ~git_rev = 
       let open Dockerfile in
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev" @@
-      Opam_ops.V2.set_opam_repo_rev git_rev @@
+      Opam_docker.V2.set_opam_repo_rev git_rev @@
       run "opam depext -uivy ocamlfind ocamlbuild camlp4" @@
       run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
     in

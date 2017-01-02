@@ -13,11 +13,11 @@ module Log = (val Logs.src_log src : Logs.LOG)
 
 type key = {
   packages: string list;
-  target: [`PR of PR.t | `Ref of Ref.t ];
   distro: string;
   ocaml_version: string;
   remote_git_rev: string;
   extra_remotes: (Repo.t * Commit.t) list;
+  target: Target.v option;
 }
 
 module Opam_key = struct
@@ -31,9 +31,8 @@ module Opam_key = struct
 
   let compare_target a b =
     match a,b with
-    |`PR a, `PR b -> PR.compare a b
-    |`Ref a, `Ref b -> Ref.compare a b
-    |a,b -> Pervasives.compare a b
+    |Some a, Some b -> Target.compare_v a b
+    |_ -> Pervasives.compare a b
 
   let compare {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes} b =
     Pervasives.compare packages b.packages ++ fun () ->
@@ -72,7 +71,6 @@ module Opam_builder = struct
   let name t = "opam:" ^ t.label
 
   let title t {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
-    let id = id_of_target target in
     let remotes =
       String.concat ~sep:":" (
        List.map (fun (pid,com) ->
@@ -80,25 +78,29 @@ module Opam_builder = struct
           (String.with_range ~len:8 (Commit.hash com))
        ) extra_remotes)
       in
-    Fmt.strf "Dockerfile %a %s:%s (%s/%s/opam-repo:%s:%s)"
-      Fmt.(list string) packages t.label id distro ocaml_version
+    Fmt.strf "Dockerfile %a %s (%s/%s/opam-repo:%s:%s)"
+      Fmt.(list string) packages t.label distro ocaml_version
       (String.with_range ~len:6 remote_git_rev) remotes
 
   let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
-    let pid = project_of_target target in
-    let commit = Commit.hash (head_of_target target) in
+    let target_d =
+      match target with
+      | None -> Dockerfile.empty
+      | Some target ->
+         let commit = Commit.hash (head_of_target target) in
+         let branch = branch_of_target target in
+         let {Repo.user; repo} = project_of_target target in
+         Opam_docker.V1.clone_src ~user ~repo ~branch ~commit ()
+    in
     let dockerfile =
       let open! Dockerfile in
-      let remotes = Opam_ops.V1.add_remotes extra_remotes in
-      let pins = Opam_ops.V1.add_pins packages in
+      let remotes = Opam_docker.V1.add_remotes extra_remotes in
+      let pins = Opam_docker.V1.add_pins packages in
       from ~tag:(distro^"_ocaml-"^ocaml_version) ("ocaml/opam" ^ (match t.version with |`V2 -> "-dev"|_ ->"")) @@
-      Opam_ops.V1.set_opam_repo_rev remote_git_rev @@
+      Opam_docker.V1.set_opam_repo_rev remote_git_rev @@
       remotes @@
       run "opam update" @@
-      run "git clone git://github.com/%s/%s /home/opam/src" pid.Repo.user pid.Repo.repo @@
-      workdir "/home/opam/src" @@
-      run "git fetch origin %s:cibranch" (branch_of_target target) @@
-      run "git checkout %s" commit @@
+      target_d @@
       pins
     in
     let open Utils.Infix in
@@ -111,15 +113,19 @@ module Opam_builder = struct
     Lwt.return  (Ok dockerfile)
 
   let branch t {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes}=
-    let id = id_of_target target in
-    let proj = project_of_target target in
-    let commit = Commit.hash (head_of_target target) in
+    let targ =
+      match target with
+      | None -> ""
+      | Some target ->
+          let id = id_of_target target in
+          let proj = project_of_target target in
+          let commit = Commit.hash (head_of_target target) in
+          Fmt.strf "%s-%a-%s"  id Repo.pp proj commit in
     let extra = String.concat ~sep:":" 
        (List.map (fun (pid,commit) -> Fmt.strf "%a#%s"
         Repo.pp pid (Commit.hash commit)) extra_remotes) in
-    Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%s-%s-%s-%a"
-      proj.Repo.user proj.Repo.repo
-      t.label distro ocaml_version id commit remote_git_rev extra (Fmt.(list string)) packages |>
+    Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%a" targ
+      t.label distro ocaml_version remote_git_rev extra (Fmt.(list string)) packages |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =

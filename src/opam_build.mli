@@ -13,11 +13,11 @@ type t
 
 type key = {
   packages: string list;
-  target: [ `PR of PR.t | `Ref of Ref.t ];
   distro: string;
   ocaml_version: string;
   remote_git_rev: string;
   extra_remotes: (Repo.t * Commit.t) list;
+  target: Target.v option;
 }
 (** [key] captures all the parameters necessary for a reproducible Opam build *)
 

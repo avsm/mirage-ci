@@ -9,6 +9,100 @@ open Datakit_ci
 open Datakit_github
 open Term.Infix
 open Docker_ops
+module OD = Opam_docker
+
+module V1 = struct
+  open !Dockerfile
+
+  let build_archive ?volume docker_build_t docker_run_t rev =
+    let dfile =
+      let open Dockerfile in
+      from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam" @@
+      OD.V1.set_opam_repo_rev rev in
+    let hum = Fmt.strf "base image for opam archive (%s)" (String.with_range ~len:6 rev) in
+    let volumes =
+      match volume with
+      | None -> []
+      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
+    in
+    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
+    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+
+  let list_all_packages t image =
+    let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
+    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+    String.cuts ~empty:false ~sep:"\n" >|=
+    List.map (fun s -> String.trim s)
+
+end
+
+module V2 = struct
+  open !Dockerfile
+
+  let build_archive ?volume docker_build_t docker_run_t rev =
+    let dfile =
+      from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
+      OD.V2.set_opam_repo_rev rev @@
+      run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
+    in
+    let hum = Fmt.strf "base image for opam2 archive (%s)" (String.with_range ~len:6 rev) in
+    let volumes =
+      match volume with
+      | None -> []
+      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
+    in
+    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
+    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/cache && opam admin make"] in
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+
+  let run_package ?volume t image pkg =
+    let cmd = ["opam";"depext";"-ivyj";"2";pkg] in
+    let volumes =
+      match volume with
+      | None -> []
+      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
+    in
+    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~cmd t in
+    let b = Docker_run.branch ~volumes ~tag:image.Docker_build.sha256 ~cmd () in
+    r, b
+
+  let run_packages ?volume t image pkgs =
+    List.map (fun pkg ->
+      let t, branch = run_package ?volume t image pkg in
+      pkg, t, branch
+    ) pkgs |> fun r ->
+    Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) |>
+    Term_utils.ignore_failure ~on_fail:(fun _ -> ()) >>= fun () ->
+    Term.return r
+
+  let list_all_packages t image =
+    let cmd = ["opam";"list";"-a";"-s";"--color=never";"--installable"] in
+    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+    String.cuts ~empty:false ~sep:"\n" >|=
+    List.map (fun s -> String.trim s)
+end
+
+let dfile_v1 ?(pins=[]) ?(remotes=[]) ~ocaml_version ~distro ~opam_repo_git_rev
+  ~user ~repo ~branch ~commit () =
+  let (@@) = Dockerfile.(@@) in
+  OD.V1.base ~ocaml_version ~distro @@
+  OD.V1.set_opam_repo_rev opam_repo_git_rev @@
+  OD.V1.add_remotes remotes @@
+  OD.V1.add_pins pins @@
+  OD.V1.clone_src ~user ~repo ~branch ~commit ()
+
+let dfile_package ?(pins=[]) ?(remotes=[]) ~target ~ocaml_version ~distro ~opam_repo_git_rev =
+  let {Repo.user; repo} = Target.repo target in
+  let branch =
+    match Target.id target with
+    | `PR pr -> Printf.sprintf "pull/%d/head" pr
+    | `Ref r -> Fmt.strf "%a" Ref.pp_name r
+  in
+  Term.target target >>= fun target ->
+  let commit = Commit.hash (Target.head target) in
+  let dfile = dfile_v1 ~pins ~remotes ~ocaml_version ~distro ~opam_repo_git_rev ~user ~repo ~branch ~commit () in
+  Term.return dfile
 
 let build_package {build_t;_} image pkg =
   let open !Dockerfile in
@@ -52,111 +146,7 @@ let packages_from_diff {pull_t;run_t;_} target =
     Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
-module V1 = struct
-  open !Dockerfile
 
-  let add_remotes rs =
-    let remotes_ref = ref 0 in
-    List.map (fun (repo, commit) ->
-     incr remotes_ref;
-     run "opam remote add e%d https://github.com/%s.git#%s"
-       !remotes_ref (Fmt.strf "%a" Repo.pp repo) (Commit.hash commit)
-    ) rs |> fun remotes ->
-    empty @@@ remotes
-
-  let add_pins packages =
-    List.map (run "opam pin add -n %s /home/opam/src") packages |> fun pins ->
-    empty @@@ pins
-
-  let set_opam_repo_rev rev =
-    workdir "/home/opam/opam-repository" @@
-    run "git pull origin master" @@
-    run "git checkout %s" rev @@
-    run "opam update -uy"
-
-  let build_archive ?volume docker_build_t docker_run_t rev =
-    let dfile =
-      let open Dockerfile in
-      from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam" @@
-      set_opam_repo_rev rev in
-    let hum = Fmt.strf "base image for opam archive (%s)" (String.with_range ~len:6 rev) in
-    let volumes =
-      match volume with
-      | None -> []
-      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
-    in
-    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
-    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
-    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
-
-  let list_all_packages t image =
-    let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
-    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
-    String.cuts ~empty:false ~sep:"\n" >|=
-    List.map (fun s -> String.trim s)
-
-end
-
-module V2 = struct
-  open !Dockerfile
-
-  let add_remotes = V1.add_remotes
-  let add_pins = V1.add_pins
-
-  let set_opam_repo_rev rev =
-    workdir "/home/opam/opam-repository" @@
-    run "git checkout master" @@
-    run "git pull origin master" @@
-    run "git branch -D v2" @@
-    run "git checkout -b v2 %s" rev @@
-    run "opam admin upgrade-format" @@
-    run "git add ." @@
-    run "git commit -a -m 'upgrade format to opam2'" @@
-    run "opam update -uy"
-
-  let build_archive ?volume docker_build_t docker_run_t rev =
-    let dfile =
-      from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
-      set_opam_repo_rev rev @@
-      run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
-    in
-    let hum = Fmt.strf "base image for opam2 archive (%s)" (String.with_range ~len:6 rev) in
-    let volumes =
-      match volume with
-      | None -> []
-      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
-    in
-    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
-    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/cache && opam admin make"] in
-    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
-
-  let run_package ?volume t image pkg =
-    let cmd = ["opam";"depext";"-ivyj";"2";pkg] in
-    let volumes =
-      match volume with
-      | None -> []
-      | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
-    in
-    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~cmd t in
-    let b = Docker_run.branch ~volumes ~tag:image.Docker_build.sha256 ~cmd () in
-    r, b
-
-  let run_packages ?volume t image pkgs =
-    List.map (fun pkg ->
-      let t, branch = run_package ?volume t image pkg in
-      pkg, t, branch
-    ) pkgs |> fun r ->
-    Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) |>
-    Term_utils.ignore_failure ~on_fail:(fun _ -> ()) >>= fun () ->
-    Term.return r
-
-  let list_all_packages t image =
-    let cmd = ["opam";"list";"-a";"-s";"--color=never";"--installable"] in
-    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
-    String.cuts ~empty:false ~sep:"\n" >|=
-    List.map (fun s -> String.trim s)
-end
-  
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 

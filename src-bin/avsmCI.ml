@@ -46,6 +46,7 @@ module Builder = struct
     Term.target target >>= fun target -> 
     let pkg_target = String.concat ~sep:" " packages in
     let hum = Fmt.strf "opam install %s" pkg_target in
+    let target = Some target in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run ~hum docker_t.DO.build_t >>= fun img ->
     Opam_ops.build_package docker_t img pkg_target

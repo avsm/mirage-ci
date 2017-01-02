@@ -6,28 +6,26 @@
 
 open Datakit_ci.Term
 
-val build_package : Docker_ops.t -> Docker_build.image -> string -> Docker_build.image t
-
-val build_packages : Docker_ops.t -> Docker_build.image -> string list -> unit t
-
-val build_revdeps : Docker_ops.t -> string list -> Docker_build.image -> unit t
-
-val list_revdeps : Docker_ops.t -> Docker_build.image -> string -> string list t
-
-val packages_from_diff : Docker_ops.t -> Datakit_ci.Target.t -> string list t
-
 module V1 : sig
-  open Datakit_github
-  val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
-  val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
+  val add_remotes : (Datakit_github.Repo.t * Datakit_github.Commit.t) list -> Dockerfile.t
+
+  val add_pins : string list -> Dockerfile.t
+
+  val set_opam_repo_rev : string -> Dockerfile.t
+
+  val base : ocaml_version:string -> distro:string -> Dockerfile.t
+
+  val clone_src :
+      user:string ->
+      repo:string -> branch:string -> commit:string -> unit -> Dockerfile.t
 end
 
 module V2 : sig
-  open Datakit_github
-  val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
-  val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t * string
-  val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
-  val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
+
+ val add_remotes :
+      (Datakit_github.Repo.t * Datakit_github.Commit.t) list -> Dockerfile.t
+ val add_pins : string list -> Dockerfile.t
+ val set_opam_repo_rev : string -> Dockerfile.t
 end
 
 (*---------------------------------------------------------------------------
