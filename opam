@@ -24,6 +24,7 @@ depends: [
   "sexplib"
   "tls"
   "ptime"
+  "irmin-unix"
 ]
 depopts: []
 build: [ "ocaml" "pkg/pkg.ml" "build" "--pinned" pinned "--tests" "false" ]
