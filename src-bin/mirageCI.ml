@@ -15,6 +15,8 @@ module Builder = struct
   open Term.Infix
 
   let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
+  let opam_repo_branch = "master"
+  let opam_repo_remote = opam_repo, opam_repo_branch
   let mirage_dev_repo = Repo.v ~user:"mirage" ~repo:"mirage-dev"
   let mirage_dev_branch = "master"
   let mirage_dev_remote = mirage_dev_repo, mirage_dev_branch
@@ -108,7 +110,7 @@ module Builder = struct
     | _ -> []
 
   let build_repo_diff target =
-    let extra_remotes = [ mirage_dev_remote ] in
+    let extra_remotes = [ mirage_dev_remote; opam_repo_remote ] in
     let build_pr_diff =
        Opam_ops.packages_from_diff docker_t target >>= fun pkgs ->
        let builds = 
