@@ -25,6 +25,7 @@ module Builder = struct
   let pool = Monitored_pool.create "docker" 5
   let label = "mir" 
   let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:one_hour ()
+  let docker_pull_t = Docker_pull.v ~logs ~label ()
   let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
   let opam_t = Opam_build.v ~logs ~label ~version:`V1
 
@@ -108,8 +109,23 @@ module Builder = struct
     |`PR _  -> all_tests
     | _ -> []
 
+  let build_repo_diff target =
+    let build_pr_diff =
+      let opam_slug = Fmt.strf "%a" Repo.pp (Target.repo target) in
+      match Target.id target with
+      |`Ref _ -> Term.fail "Skipping, can only build PRs"
+      |`PR pr_num ->
+         Opam_ops.packages_from_diff ~opam_slug ~pr_num docker_pull_t docker_run_t >>= fun pkgs ->
+         let p = String.concat ~sep:" " pkgs in
+         Term.return p
+    in
+    match Target.id target with
+    | `PR pr -> [Term_utils.report ~order:1 ~label:"Build" build_pr_diff]
+    | _ -> []
+
   let tests = [
     Config.project ~id:"mirage/mirage" (run_phases ~extra_remotes:[mirage_dev_remote] ());
+    Config.project ~id:"mirage/mirage-dev" build_repo_diff;
   ]
 end
 

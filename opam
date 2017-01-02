@@ -23,6 +23,7 @@ depends: [
   "rresult"
   "sexplib"
   "tls"
+  "ptime"
 ]
 depopts: []
 build: [ "ocaml" "pkg/pkg.ml" "build" "--pinned" pinned "--tests" "false" ]

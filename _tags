@@ -1,5 +1,5 @@
 true : annot, bin_annot, safe_string, package(bytes), debug
-true : package(datakit-ci dockerfile.opam toml cmdliner rresult fpath bos asetmap)
+true : package(datakit-ci dockerfile.opam toml cmdliner rresult fpath bos asetmap ptime ptime.clock.os)
 true : package(ppx_sexp_conv)
 
 <src> : include

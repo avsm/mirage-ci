@@ -40,6 +40,16 @@ let build_revdeps t run_t packages image =
     l, terms) packages |>
   Term.wait_for_all
 
+let packages_from_diff ~opam_slug ~pr_num docker_pull_t docker_run_t =
+  let time = Ptime_clock.now () in
+  Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time docker_pull_t >>= fun imgs ->
+  match imgs with
+  | [] -> Term.fail "Unable to pull unikernel/mirage-ci:opam-diff" 
+  | img :: _ ->
+      let cmd = [opam_slug; string_of_int pr_num] in
+      Docker_run.run ~tag:img.Docker_build.sha256 ~cmd docker_run_t >|=
+      fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
+
 module V1 = struct
   open !Dockerfile
 
