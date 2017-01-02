@@ -23,6 +23,7 @@ val distro_build :
   opam_repo:Datakit_github.Repo.t * string ->
   distro:string ->
   ocaml_version:string ->
+  typ:[ `Package | `Repo ] ->
   opam_t:Opam_build.t -> docker_t:Docker_ops.t -> unit -> Docker_build.image t
 
 module V1 : sig

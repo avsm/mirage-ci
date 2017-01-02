@@ -146,7 +146,7 @@ let packages_from_diff {pull_t;run_t;_} target =
     Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
-let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~ocaml_version ~opam_t ~docker_t () =
+let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~ocaml_version ~typ ~opam_t ~docker_t () =
   Term.branch_head (fst opam_repo) (snd opam_repo) >>= fun opam_repo_commit ->
   Term_utils.term_map_s (fun (repo,branch) ->
     Term.branch_head repo branch >|= fun commit ->
@@ -158,7 +158,7 @@ let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~
   (match target with
    | None -> Term.return None
    | Some target -> Term.target target >|= fun t -> Some t) >>= fun target ->
-  Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
+  Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes;typ}) >>=
   Docker_build.run docker_t.Docker_ops.build_t ~hum >>= fun img ->
   build_package docker_t img pkg_target
 

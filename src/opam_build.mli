@@ -18,6 +18,7 @@ type key = {
   remote_git_rev: string;
   extra_remotes: (Repo.t * Commit.t) list;
   target: Target.v option;
+  typ: [`Package|`Repo];
 }
 (** [key] captures all the parameters necessary for a reproducible Opam build *)
 
