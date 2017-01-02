@@ -20,7 +20,7 @@ module Builder = struct
   let primary_ocaml_version = "4.04.0"
   let compiler_variants = ["4.02.3";"4.03.0";"4.04.0_flambda"]
 
-  let label = "opam"
+  let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:24 ()
   let opam_t = Opam_build.v ~logs ~label ~version:`V1
   let do_build = Opam_ops.distro_build ~opam_repo:opam_repo_remote ~opam_t ~docker_t
