@@ -8,13 +8,12 @@ open !Astring
 
 open Datakit_ci
 open Datakit_github
+module DO = Docker_ops
 
 module Builder = struct
 
   open Term.Infix
 
-  let one_hour = 60. *. 60.
-  let three_hours = one_hour *. 3.
   let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
   let mirage_dev_repo = Repo.v ~user:"mirage" ~repo:"mirage-dev"
   let mirage_dev_branch = "master"
@@ -22,11 +21,8 @@ module Builder = struct
   let primary_ocaml_version = "4.04.0"
   let compiler_variants = ["4.03.0";"4.04.0_flambda"]
 
-  let pool = Monitored_pool.create "docker" 5
-  let label = "mir" 
-  let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:one_hour ()
-  let docker_pull_t = Docker_pull.v ~logs ~label ()
-  let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
+  let label = "mir"
+  let docker_t = DO.v ~logs ~label ~jobs:4 ()
   let opam_t = Opam_build.v ~logs ~label ~version:`V1
 
   (* XXX TODO temporary until we can query package list automatically *)
@@ -50,7 +46,7 @@ module Builder = struct
     let pkg_target = String.concat ~sep:" " packages in
     let hum = Fmt.strf "base image for opam install %s" pkg_target in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
-    Docker_build.run docker_t ~hum >>= fun img ->
+    Docker_build.run docker_t.DO.build_t ~hum >>= fun img ->
     Opam_ops.build_package docker_t img pkg_target
 
   let run_phases ?(extra_remotes=[]) () target =
@@ -61,7 +57,7 @@ module Builder = struct
     (* phase 2 revdeps *)
     let pkg_revdeps =
       Term.without_logs ubuntu >>=
-      Opam_ops.build_revdeps docker_t docker_run_t (packages_of_repo target) in
+      Opam_ops.build_revdeps docker_t (packages_of_repo target) in
     let phase2 =
       Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in
@@ -112,7 +108,7 @@ module Builder = struct
   let build_repo_diff target =
     let extra_remotes = [ mirage_dev_remote ] in
     let build_pr_diff =
-       Opam_ops.packages_from_diff target docker_pull_t docker_run_t >>= fun pkgs ->
+       Opam_ops.packages_from_diff docker_t target >>= fun pkgs ->
        let builds = 
          List.map (fun pkg ->
            let t = build ~packages:[pkg] ~extra_remotes target "ubuntu-16.04" "4.03.0" in

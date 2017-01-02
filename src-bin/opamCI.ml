@@ -20,7 +20,7 @@ module Builder = struct
   let pool = Monitored_pool.create "docker" 24
   let label = "ocaml" 
   let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:eight_hours ()
-  let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:eight_hours
+  let docker_run_t = Docker_run.v ~logs ~label ~pool ~timeout:eight_hours ()
   let opam_t = Opam_build.v ~logs ~label ~version:`V2
   let opam_bulk_t = Opam_bulk_build.v ~label ~logs
 

@@ -11,8 +11,8 @@ open Datakit_ci
 type t
 (** [t] is the state of a [Docker_run] instance *)
 
-val config : logs:Live_log.manager -> label:string -> pool:Monitored_pool.t -> timeout:float -> t
-(** [config ~logs ~label ~pool ~timeout] will configure a Docker runner to execute
+val v : logs:Live_log.manager -> label:string -> pool:Monitored_pool.t -> timeout:float -> unit -> t
+(** [v ~logs ~label ~pool ~timeout] will configure a Docker runner to execute
     images. [pool] controls the level of parallel builds allowed, and [timeout]
     is the length in seconds that a run can execute for before being terminated. *)
 

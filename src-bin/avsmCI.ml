@@ -11,15 +11,14 @@ open !Astring
 
 open Datakit_ci
 open Datakit_github
+module DO = Docker_ops
 
 module Builder = struct
 
   open Term.Infix
 
-  let one_hour = 60. *. 60.
   let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
   let primary_ocaml_version = "4.03.0"
-  let pool = Monitored_pool.create "docker" 2
 
   (* XXX TODO temporary until we can query package list automatically *)
   let packages_of_repo target =
@@ -29,8 +28,7 @@ module Builder = struct
     | _ -> failwith "TODO package_of_repo"
 
   let label = "mirage1" 
-  let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:one_hour ()
-  let docker_run_t = Docker_run.config ~logs ~label ~pool ~timeout:one_hour
+  let docker_t = DO.v ~logs ~label ~jobs:4 ()
   let opam_t = Opam_build.v ~logs ~label ~version:`V1
   let git_mk user repo = Git.v ~logs ~dir:("/home/avsm/mirage-ci/_checkouts"^"/"^user^"/"^repo)
   let git_t = git_mk "avsm" "ocaml-dockerfile"
@@ -49,7 +47,7 @@ module Builder = struct
     let pkg_target = String.concat ~sep:" " packages in
     let hum = Fmt.strf "opam install %s" pkg_target in
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
-    Docker_build.run ~hum docker_t >>= fun img ->
+    Docker_build.run ~hum docker_t.DO.build_t >>= fun img ->
     Opam_ops.build_package docker_t img pkg_target
 
   let report ?(allow_fail=false) label img =

@@ -8,15 +8,16 @@ open !Astring
 open Datakit_ci
 open Datakit_github
 open Term.Infix
+open Docker_ops
 
-let build_package t image pkg =
+let build_package {build_t;_} image pkg =
   let open !Dockerfile in
   let dfile =
     from image.Docker_build.sha256 @@
     run "opam depext -y %s" pkg @@
     run "opam install -j 2 -yv %s" pkg in
   let hum = Fmt.strf "opam install %s" pkg in
-  Docker_build.run t ~hum dfile
+  Docker_build.run build_t ~hum dfile
 
 let build_packages t image pkgs =
   List.map (fun pkg ->
@@ -26,29 +27,29 @@ let build_packages t image pkgs =
   Term.wait_for_all |>
   Term_utils.ignore_failure ~on_fail:(fun _ -> ())
 
-let list_revdeps t image pkg =
+let list_revdeps {run_t} image pkg =
   let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
-  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+  Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
   String.cuts ~empty:false ~sep:"\n"
 
-let build_revdeps t run_t packages image =
+let build_revdeps ({build_t;_} as t) packages image =
   List.map (fun pkg ->
     let terms =
-      list_revdeps run_t image pkg >>=
+      list_revdeps t image pkg >>=
       build_packages t image in
     let l = Fmt.strf "revdeps:%s" pkg in
     l, terms) packages |>
   Term.wait_for_all
 
-let packages_from_diff target docker_pull_t docker_run_t =
+let packages_from_diff {pull_t;run_t;_} target =
   let opam_slug = Fmt.strf "%a" Repo.pp (Target.repo target) in
   match Target.id target with
   |`Ref _ -> Term.fail "Skipping, can only build PRs"
   |`PR pr_num ->
     let time = Ptime_clock.now () in
-    Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time docker_pull_t >>= fun img ->
+    Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time pull_t >>= fun img ->
     let cmd = [opam_slug; string_of_int pr_num] in
-    Docker_run.run ~tag:img.Docker_build.sha256 ~cmd docker_run_t >|=
+    Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
 module V1 = struct

@@ -72,7 +72,7 @@ end
 module Docker_run_cache = Cache.Make(Docker_runner)
 
 type t = Docker_run_cache.t 
-let config ~logs ~label ~pool ~timeout =
+let v ~logs ~label ~pool ~timeout () =
   Docker_run_cache.create ~logs { Docker_runner.label; pool; timeout }
 
 let run ?(volumes=[]) ?hum ~tag ~cmd config =
