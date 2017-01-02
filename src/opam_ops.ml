@@ -146,6 +146,21 @@ let packages_from_diff {pull_t;run_t;_} target =
     Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
+let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~ocaml_version ~opam_t ~docker_t () =
+  Term.branch_head (fst opam_repo) (snd opam_repo) >>= fun opam_repo_commit ->
+  Term_utils.term_map_s (fun (repo,branch) ->
+    Term.branch_head repo branch >|= fun commit ->
+    (repo,commit)
+  ) extra_remotes >>= fun extra_remotes ->
+  let remote_git_rev = Commit.hash opam_repo_commit in
+  let pkg_target = String.concat ~sep:" " packages in
+  let hum = Fmt.strf "base image for opam install %s" pkg_target in
+  (match target with
+   | None -> Term.return None
+   | Some target -> Term.target target >|= fun t -> Some t) >>= fun target ->
+  Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
+  Docker_build.run docker_t.Docker_ops.build_t ~hum >>= fun img ->
+  build_package docker_t img pkg_target
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

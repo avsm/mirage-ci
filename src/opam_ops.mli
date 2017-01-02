@@ -16,6 +16,15 @@ val list_revdeps : Docker_ops.t -> Docker_build.image -> string -> string list t
 
 val packages_from_diff : Docker_ops.t -> Datakit_ci.Target.t -> string list t
 
+val distro_build :
+  ?extra_remotes:(Datakit_github.Repo.t * string) list ->
+  ?packages:string list ->
+  ?target:Datakit_ci.Target.t ->
+  opam_repo:Datakit_github.Repo.t * string ->
+  distro:string ->
+  ocaml_version:string ->
+  opam_t:Opam_build.t -> docker_t:Docker_ops.t -> unit -> Docker_build.image t
+
 module V1 : sig
   open Datakit_github
   val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t

@@ -18,6 +18,8 @@ module Builder = struct
   open Term.Infix
 
   let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
+  let opam_repo_branch = "master"
+  let opam_repo_remote = opam_repo, opam_repo_branch
   let primary_ocaml_version = "4.03.0"
 
   (* XXX TODO temporary until we can query package list automatically *)
@@ -34,23 +36,6 @@ module Builder = struct
   let git_t = git_mk "avsm" "ocaml-dockerfile"
   let toml_t = Toml_reader.config ~logs ~label ~git_t ~toml_filename:".datakit.toml"
 
-  (* base building *)
-  let build ?(extra_remotes=[]) target distro ocaml_version = 
-    let packages = packages_of_repo target in
-    Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
-    Term_utils.term_map_s (fun (repo,branch) ->
-      Term.branch_head repo branch >>= fun commit ->
-      Term.return (repo,commit)
-    ) extra_remotes >>= fun extra_remotes ->
-    let remote_git_rev = Commit.hash opam_repo_commit in
-    Term.target target >>= fun target -> 
-    let pkg_target = String.concat ~sep:" " packages in
-    let hum = Fmt.strf "opam install %s" pkg_target in
-    let target = Some target in
-    Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
-    Docker_build.run ~hum docker_t.DO.build_t >>= fun img ->
-    Opam_ops.build_package docker_t img pkg_target
-
   let report ?(allow_fail=false) label img =
     let term =
       Term.state img >>= function
@@ -64,9 +49,10 @@ module Builder = struct
   let run_tests ?extra_remotes target test =
     let open Datakit_toml in
     let tests =
-      List.map (fun ov ->
+      List.map (fun ocaml_version ->
         List.map (fun distro ->
-          build target distro ov
+          let packages = packages_of_repo target in
+          Opam_ops.distro_build ~packages ~target ~distro ~ocaml_version ~opam_repo:opam_repo_remote ~opam_t ~docker_t ()
         ) test.distros
       ) test.ocamlv |> List.flatten
     in
