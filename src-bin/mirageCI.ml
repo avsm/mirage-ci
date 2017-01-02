@@ -34,24 +34,25 @@ module Builder = struct
     | _ -> failwith "TODO package_of_repo"
 
   (* base building *)
-  let build ?(extra_remotes=[]) ?packages target distro ocaml_version =
-    let packages = match packages with None -> packages_of_repo target | Some p -> p in
+  let build ?(extra_remotes=[]) ?(packages=[]) ?target distro ocaml_version =
     Term.branch_head opam_repo "master" >>= fun opam_repo_commit ->
     Term_utils.term_map_s (fun (repo,branch) ->
       Term.branch_head repo branch >|= fun commit ->
       (repo,commit)
     ) extra_remotes >>= fun extra_remotes ->
     let remote_git_rev = Commit.hash opam_repo_commit in
-    Term.target target >>= fun target ->
     let pkg_target = String.concat ~sep:" " packages in
     let hum = Fmt.strf "base image for opam install %s" pkg_target in
-    let target = Some target in
+    (match target with
+    | None -> Term.return None
+    | Some target -> Term.target target >|= fun t -> Some t) >>= fun target ->
     Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes}) >>=
     Docker_build.run docker_t.DO.build_t ~hum >>= fun img ->
     Opam_ops.build_package docker_t img pkg_target
 
   let run_phases ?(extra_remotes=[]) () target =
-    let build = build ~extra_remotes target in
+    let packages = packages_of_repo target in
+    let build = build ~extra_remotes ~packages ~target in
     (* phase 1 *)
     let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
     let phase1 = ubuntu >>= fun _ -> Term.return () in
@@ -112,7 +113,7 @@ module Builder = struct
        Opam_ops.packages_from_diff docker_t target >>= fun pkgs ->
        let builds = 
          List.map (fun pkg ->
-           let t = build ~packages:[pkg] ~extra_remotes target "ubuntu-16.04" "4.03.0" in
+           let t = build ~packages:[pkg] ~extra_remotes "ubuntu-16.04" "4.03.0" in
            pkg, t
          ) pkgs in
        Term.wait_for_all builds
