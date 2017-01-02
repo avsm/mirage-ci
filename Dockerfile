@@ -4,6 +4,7 @@ RUN cd /tmp && curl -OL https://test.docker.com/builds/Linux/x86_64/docker-1.13.
 RUN opam pin add -n session git://github.com/talex5/ocaml-session#redis
 RUN opam pin add -n datakit-ci git://github.com/avsm/datakit#max-fids
 RUN opam depext -uivy -j 4 datakit-ci conf-libev
+RUN opam depext -uivy -j 4 toml irmin-unix ezjsonm dockerfile bos ptime fmt
 ADD . /home/opam/src
 RUN sudo chown -R opam /home/opam/src
 RUN opam pin add -n mirage-ci /home/opam/src
