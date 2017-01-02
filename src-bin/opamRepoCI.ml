@@ -74,12 +74,10 @@ module Builder = struct
     in
     let all_tests = 
       [ Term_utils.report ~order:1 ~label:"Build" phase1;
-(*
         Term_utils.report ~order:2 ~label:"Revdeps" phase2;
         Term_utils.report ~order:3 ~label:"Compilers" phase3;
         Term_utils.report ~order:4 ~label:"Common Distros" phase4;
         Term_utils.report ~order:5 ~label:"All Distros" phase5;
-*)
       ] in
     match Target.id target with
     |`PR _  -> all_tests
