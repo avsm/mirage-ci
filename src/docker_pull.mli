@@ -14,7 +14,7 @@ type t
 val v : logs:Live_log.manager -> label:string -> unit -> t
 (** [v ~logs ~label] will configure a Docker puller *)
 
-val run : ?tag:string -> slug:string -> time:Ptime.t -> t -> Docker_build.image list Term.t
+val run : ?tag:string -> slug:string -> time:Ptime.t -> t -> Docker_build.image Term.t
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Anil Madhavapeddy

@@ -42,7 +42,7 @@ module Docker_puller = struct
   module Key = Docker_pull_key
 
   type context = job_id
-  type value = DB.image list
+  type value = DB.image
 
   let name t = "docker-pull:" ^ t.label
 
@@ -67,7 +67,9 @@ module Docker_puller = struct
     let sha256s = Buffer.contents images_output |> String.trim |> String.cuts ~empty:false ~sep:"\n" |> List.map String.trim in
     let open Utils.Infix in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "sha256s") (Cstruct.of_string (String.concat ~sep:"\n" sha256s)) >>*= fun () ->
-    Lwt.return (Ok (imgs_of_sha256s slug tag sha256s))
+    match imgs_of_sha256s slug tag sha256s with
+    | img :: _ -> Lwt.return (Ok img)
+    | [] -> Lwt.return (Error (`Failure "Pull failed"))
 
   let branch _t {slug; tag; time} =
     let tag = match tag with None -> "latest" | Some t -> t in
@@ -77,7 +79,9 @@ module Docker_puller = struct
     let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/sha256s") >>*= fun sha256s ->
     let sha256s = Cstruct.to_string sha256s |> String.cuts ~empty:false ~sep:"\n" in
-    Lwt.return (imgs_of_sha256s slug tag sha256s)
+    match imgs_of_sha256s slug tag sha256s with
+    | img :: _ -> Lwt.return img
+    | [] -> Lwt.fail_with "Pull failed"
 end
  
 module Docker_pull_cache = Cache.Make(Docker_puller)
