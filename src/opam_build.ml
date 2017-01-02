@@ -90,18 +90,18 @@ module Opam_builder = struct
          let commit = Commit.hash (head_of_target target) in
          let branch = branch_of_target target in
          let {Repo.user; repo} = project_of_target target in
-         Opam_docker.V1.clone_src ~user ~repo ~branch ~commit ()
+         let (@@) = Dockerfile.(@@) in
+         Opam_docker.V1.clone_src ~user ~repo ~branch ~commit () @@
+         Opam_docker.V1.add_pins packages
     in
     let dockerfile =
       let open! Dockerfile in
       let remotes = Opam_docker.V1.add_remotes extra_remotes in
-      let pins = Opam_docker.V1.add_pins packages in
       from ~tag:(distro^"_ocaml-"^ocaml_version) ("ocaml/opam" ^ (match t.version with |`V2 -> "-dev"|_ ->"")) @@
       Opam_docker.V1.set_opam_repo_rev remote_git_rev @@
       remotes @@
       run "opam update" @@
-      target_d @@
-      pins
+      target_d
     in
     let open Utils.Infix in
     let open Datakit_path.Infix in
