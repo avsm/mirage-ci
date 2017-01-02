@@ -100,18 +100,17 @@ module Opam_builder = struct
          let commit = Commit.hash (head_of_target target) in
          let branch = branch_of_target target in
          let open Dockerfile in
-         workdir "cd /home/opam/opam-repository" @@
+         workdir "/home/opam/opam-repository" @@
          run "git fetch origin %s:cibranch" branch @@
-         run "git checkout %s" commit @@
-         run "opam update"
+         run "git checkout %s" commit
     in
     let dockerfile =
       let open! Dockerfile in
       let remotes = Opam_docker.V1.add_remotes extra_remotes in
       from ~tag:(distro^"_ocaml-"^ocaml_version) ("ocaml/opam" ^ (match t.version with |`V2 -> "-dev"|_ ->"")) @@
       remotes @@
-      run "opam update" @@
-      target_d
+      target_d @@
+      run "opam update"
     in
     let open Utils.Infix in
     let open Datakit_path.Infix in
