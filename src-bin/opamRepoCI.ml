@@ -86,7 +86,7 @@ module Builder = struct
     | _ -> []
 
   let tests = [
-    Config.project ~id:"ocaml/opam_repository" (run_phases ())
+    Config.project ~id:"ocaml/opam-repository" (run_phases ())
   ]
 end
 
