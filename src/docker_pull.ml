@@ -70,8 +70,8 @@ module Docker_puller = struct
     Lwt.return (Ok (imgs_of_sha256s slug tag sha256s))
 
   let branch _t {slug; tag; time} =
-    let frag = pull_frag_of_t slug tag in
-    Fmt.strf "docker-pull-%s-%Ld" frag (Ptime.to_float_s time |> Int64.of_float) 
+    let tag = match tag with None -> "latest" | Some t -> t in
+    Fmt.strf "docker-pull-%s-%s-%Ld" slug tag (Ptime.to_float_s time |> Int64.of_float) 
 
   let load _t tr {slug; tag; _ }  =
     let open Utils.Infix in
