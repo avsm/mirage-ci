@@ -71,7 +71,7 @@ module Docker_puller = struct
 
   let branch _t {slug; tag; time} =
     let frag = pull_frag_of_t slug tag in
-    Fmt.strf "docker-pull-%s-%a" frag Ptime.pp time
+    Fmt.strf "docker-pull-%s-%Ld" frag (Ptime.to_float_s time |> Int64.of_float) 
 
   let load _t tr {slug; tag; _ }  =
     let open Utils.Infix in
