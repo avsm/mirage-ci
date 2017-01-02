@@ -28,7 +28,7 @@ module Builder = struct
   let run_phases ?(extra_remotes=[]) () (target:Target.t) =
     let build ~distro ~ocaml_version =
       Opam_ops.packages_from_diff docker_t target >>= fun packages ->
-      do_build ~extra_remotes ~target ~packages ~distro ~ocaml_version () in
+      do_build ~extra_remotes ~packages ~distro ~ocaml_version () in
     (* phase 1 *)
     let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
     let phase1 = ubuntu >>= fun _ -> Term.return () in
