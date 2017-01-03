@@ -25,21 +25,25 @@ module Builder = struct
     | "mirage/mirage" -> Term.return ["mirage";"mirage-types";"mirage-types-lwt"]
     | _ -> Term.fail "Unknown repository for packages_of_repo"
 
-  let repo_builder ~opam_version target =
-    let packages = packages_of_repo target in
+  let repo_builder ~opam_version ~typ target =
+    let packages = match typ with
+      |`Package -> packages_of_repo target
+      |`Repo -> Opam_ops.packages_from_diff docker_t target in
     let opam_repo = Opam_docker.mirage_opam_repository in
-    let typ = `Package in
     let remotes = [Opam_docker.repo ~user:"mirage" ~repo:"mirage-dev" ~branch:"master"] in
     Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
-  let run_phases target =
-    let all_tests = repo_builder ~opam_version:`V1 target in
+  let run_phases typ target =
+    let all_tests = repo_builder ~opam_version:`V2 ~typ target in
     match Target.id target with
     |`Ref ["heads";"master"] -> all_tests
     |`PR _  -> all_tests
     | _ -> []
 
-  let tests = [ Config.project ~id:"mirage/mirage" run_phases ]
+  let tests = [
+    Config.project ~id:"mirage/mirage" (run_phases `Package);
+    Config.project ~id:"mirage/mirage-dev" (run_phases `Repo)
+  ]
 end
 
 (* Command-line parsing *)
