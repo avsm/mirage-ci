@@ -66,7 +66,7 @@ module Opam_builder = struct
     | `PR pr ->
          if target_repo.Repo.repo = "opam-repository" then
            Printf.sprintf "pull/%d/head" (PR.number pr)
-         else "origin"
+         else "master" (* TODO this should be a commit? *)
     | `Ref r -> Fmt.strf "%a" Ref.pp_name (Ref.name r)
 
   let name t = "opam:" ^ t.label
