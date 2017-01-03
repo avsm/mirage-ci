@@ -14,40 +14,29 @@ module Builder = struct
 
   open Term.Infix
 
-  let opam_repo = Repo.v ~user:"ocaml" ~repo:"opam-repository"
+  let opam_repo_repo = Repo.v ~user:"ocaml" ~repo:"opam-repository"
   let opam_repo_branch = "master"
-  let opam_repo_remote = opam_repo, opam_repo_branch
-  let primary_ocaml_version = "4.04.0"
-  let compiler_variants = ["4.02.3";"4.03.0";"4.04.0_flambda"]
+  let opam_repo = opam_repo_repo, opam_repo_branch
 
   let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:24 ()
-  let opam_v1_t = Opam_build.v ~logs ~label ~version:`V1
-  let opam_v2_t = Opam_build.v ~logs ~label ~version:`V2
+  let opam_t = Opam_build.v ~logs ~label
 
-  let repo_builder_v1 target =
+  let repo_builder ~opam_version target =
     let packages = Opam_ops.packages_from_diff docker_t target in
-    let build = Opam_ops.distro_build ~typ:`Repo ~opam_repo:opam_repo_remote ~opam_t:opam_v1_t ~docker_t in
-    let build_revdeps = Opam_ops.V1.run_revdeps in
-    let extra_remotes = [] in
-    Opam_ops.run_phases ~label:"V1.2" ~extra_remotes ~packages ~build ~build_revdeps docker_t target 
-
-  let repo_builder_v2 target =
-    let packages = Opam_ops.packages_from_diff docker_t target in
-    let build = Opam_ops.distro_build ~typ:`Repo ~opam_repo:opam_repo_remote ~opam_t:opam_v2_t ~docker_t in
-    let build_revdeps = Opam_ops.V2.run_revdeps in
-    let extra_remotes = [] in
-    Opam_ops.run_phases ~label:"V2.0" ~extra_remotes ~packages ~build ~build_revdeps docker_t target 
+    let typ = `Repo in
+    let remotes = [] in
+    Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
   let run_phases target =
-    let tests = (repo_builder_v1 target) @ (repo_builder_v2 target) in
+    let tests =
+      (repo_builder ~opam_version:`V1 target) @
+      (repo_builder ~opam_version:`V2 target) in
     match Target.id target with
     |`PR _  -> tests
     | _ -> []
  
-  let tests = [
-    Config.project ~id:"ocaml/opam-repository" run_phases
-  ]
+  let tests = [ Config.project ~id:"ocaml/opam-repository" run_phases ]
 end
 
 (* Command-line parsing *)

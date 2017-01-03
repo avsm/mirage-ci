@@ -8,8 +8,30 @@ open !Astring
 open Datakit_ci
 open Datakit_github
 
+module Remote = struct
+  type t = {
+    repo: Repo.t;
+    commit: Commit.t;
+    full_remote: bool;
+  }
+
+  let ( ++ ) x fn =
+    match x with
+    | 0 -> fn ()
+    | r -> r
+
+  let compare {repo; commit; full_remote} b =
+    Repo.compare repo b.repo ++ fun () ->
+    Commit.compare commit b.commit ++ fun () ->
+    Pervasives.compare full_remote b.full_remote
+
+  let pp ppf {repo; commit; full_remote } =
+    Fmt.pf ppf "repo=%a commit=%a full_remote=%b"
+      Repo.pp repo Commit.pp commit full_remote
+end
+
 module type V = sig
-  val add_remotes : (Repo.t * Commit.t) list -> Dockerfile.t
+  val add_remotes : Remote.t list -> Dockerfile.t
 
   val set_opam_repo_rev : ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
 
@@ -24,7 +46,7 @@ module V1 = struct
 
   let add_remotes rs =
     let remotes_ref = ref 0 in
-    List.map (fun (repo, commit) ->
+    List.map (fun {Remote.repo; commit; _} ->
      incr remotes_ref;
      run "opam remote add e%d https://github.com/%s.git#%s"
        !remotes_ref (Fmt.strf "%a" Repo.pp repo) (Commit.hash commit)

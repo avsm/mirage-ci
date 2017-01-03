@@ -7,8 +7,18 @@
 open Datakit_github
 open Datakit_ci.Term
 
+module Remote : sig
+  type t = {
+    repo: Repo.t;
+    commit: Commit.t;
+    full_remote: bool;
+  }
+  val compare : t -> t -> int
+  val pp : t Fmt.t
+end
+
 module type V = sig
-  val add_remotes : (Repo.t * Commit.t) list -> Dockerfile.t
+  val add_remotes : Remote.t list -> Dockerfile.t
 
   val set_opam_repo_rev : ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
 

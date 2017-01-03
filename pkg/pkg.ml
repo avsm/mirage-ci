@@ -8,8 +8,10 @@ let () =
   Ok [
     Pkg.lib "src/mirage-ci.mllib";
     Pkg.bin "src-bin/mirageCI";
-    Pkg.bin "src-bin/opamCI";
+(*
+    Pkg.bin "src-bin/opamCI"; *)
     Pkg.bin "src-bin/opamRepoCI";
+(*
     Pkg.bin "src-bin/datakitToml";
-    Pkg.bin "src-bin/opam-bulk-scry";
+    Pkg.bin "src-bin/opam-bulk-scry"; *)
   ]

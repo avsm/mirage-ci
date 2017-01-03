@@ -190,41 +190,51 @@ let packages_from_diff {pull_t;run_t;_} target =
   match Target.id target with
   |`Ref _ -> Term.fail "Skipping, can only build PRs"
   |`PR pr_num ->
-    let time = Ptime_clock.now () in
-(*    Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time pull_t >>= fun img -> *)
+(*    let time = Ptime_clock.now () in
+    Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time pull_t >>= fun img -> *)
     let cmd = [opam_slug; string_of_int pr_num] in
     Docker_run.run ~tag:"unikernel/mirage-ci:opam-diff" ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
-let distro_build ~extra_remotes ~packages ~target ~opam_repo ~distro ~ocaml_version ~typ ~opam_t ~docker_t () =
-  Term.branch_head (fst opam_repo) (snd opam_repo) >>= fun opam_repo_commit ->
+let run_revdeps ?volume ~opam_version docker_t packages img =
+  match opam_version with
+  |`V1 -> V1.run_revdeps ?volume docker_t packages img
+  |`V2 -> V2.run_revdeps ?volume docker_t packages img
+
+let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t =
+  (* Get the commits for the mainline opam repo *)
+  let opam_repo, opam_repo_branch = opam_repo in
+  Term.branch_head opam_repo opam_repo_branch >>= fun opam_repo_commit ->
+  let opam_repo_remote = {Opam_docker.Remote.repo=opam_repo; commit=opam_repo_commit; full_remote=true} in
+  (* Get commits for any extra OPAM remotes *)
   Term_utils.term_map_s (fun (repo,branch) ->
     Term.branch_head repo branch >|= fun commit ->
-    (repo,commit)
-  ) extra_remotes >>= fun extra_remotes ->
-  let remote_git_rev = Commit.hash opam_repo_commit in
+    {Opam_docker.Remote.repo; commit; full_remote=false}
+  ) remotes >>= fun remotes ->
+  let remotes = opam_repo_remote :: remotes in
+  Term.target target >>= fun target ->
+  Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
   let pkg_target = String.concat ~sep:" " packages in
   let hum = Fmt.strf "base image for opam install %s" pkg_target in
-  Term.target target >>= fun target -> let target = Some target in (* TODO cleanup target *)
-  Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes;typ}) >>=
-  Docker_build.run docker_t.Docker_ops.build_t ~hum >>= fun img ->
+  Docker_build.run docker_t.Docker_ops.build_t ~hum df >>= fun img ->
   build_package docker_t img pkg_target
 
 let primary_ocaml_version = "4.04.0"
 let compiler_variants = ["4.02.3";"4.03.0";"4.04.0_flambda"]
 
-let run_phases ~label ~extra_remotes ~(packages:string list Term.t) ~build ~build_revdeps (docker_t:Docker_ops.t) (target:Target.t) =
-    let build ~distro ~ocaml_version =
-      packages >>= fun packages ->
-      build ~extra_remotes ~packages ~target ~distro ~ocaml_version () in
-    (* phase 1 *)
-    let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
-    let phase1 = ubuntu >>= fun _ -> Term.return () in
-    (* phase 2 revdeps *)
-    let pkg_revdeps =
-      Term.without_logs ubuntu >>= fun (img:Docker_build.image) ->
-      packages >>= fun packages ->
-      build_revdeps docker_t packages img in
+let run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
+  let build ~distro ~ocaml_version =
+    packages >>= fun packages ->
+    distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
+  in
+  (* phase 1 *)
+  let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
+  let phase1 = ubuntu >>= fun _ -> Term.return () in
+  (* phase 2 revdeps *)
+  let pkg_revdeps =
+    Term.without_logs ubuntu >>= fun (img:Docker_build.image) ->
+    packages >>= fun packages ->
+    run_revdeps ~opam_version docker_t packages img in
     let phase2 =
       Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in
@@ -260,7 +270,7 @@ let run_phases ~label ~extra_remotes ~(packages:string list Term.t) ~build ~buil
         "OpenSUSE 42.1", opensuse;
         "Fedora 24", fedora24 ]
     in
-    let lf x = Fmt.strf "%s %s" label x in
+    let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
     [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;
         Term_utils.report ~order:2 ~label:(lf "Revdeps") phase2;
         Term_utils.report ~order:3 ~label:(lf "Compilers") phase3;
@@ -268,7 +278,6 @@ let run_phases ~label ~extra_remotes ~(packages:string list Term.t) ~build ~buil
         Term_utils.report ~order:5 ~label:(lf "All Distros") phase5;
     ]
  
-
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 

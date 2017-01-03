@@ -11,22 +11,13 @@ open Datakit_github
 type t
 (* [t] is the state of an Opam_build instance *)
 
-type key = {
-  packages: string list;
-  distro: string;
-  ocaml_version: string;
-  remote_git_rev: string;
-  extra_remotes: (Repo.t * Commit.t) list;
-  target: Target.v option;
-  typ: [`Package|`Repo];
-}
-(** [key] captures all the parameters necessary for a reproducible Opam build *)
-
-val v : version:[ `V1 | `V2 ] -> logs:Live_log.manager -> label:string -> t
+val v : logs:Live_log.manager -> label:string -> t
 (** [v ~logs ~label t] will configure an [Opam_build] instance to generate
   Dockerfiles from {!key} parameters. *)
 
-val run : t -> key -> Dockerfile.t Term.t
+val run : ?packages:string list -> ?target:Target.v -> distro:string ->
+  ocaml_version:string -> remotes:Opam_docker.Remote.t list -> typ:[`Package|`Repo]
+  -> opam_version:[`V1|`V2] -> t -> Dockerfile.t Term.t
 (** [run t key] will result in a Datakit_ci {!Term.t} that will generate
   a {!Dockerfile.t} that can be built using a {!Docker_build.t} instance
   into a concrete image. *)

@@ -10,30 +10,29 @@ open Datakit_ci.Term
 val packages_from_diff : Docker_ops.t -> Datakit_ci.Target.t -> string list t
 
 val distro_build :
-  extra_remotes:(Datakit_github.Repo.t * string) list ->
   packages:string list ->
   target:Datakit_ci.Target.t ->
-  opam_repo:Datakit_github.Repo.t * string ->
   distro:string ->
   ocaml_version:string ->
+  remotes:(Datakit_github.Repo.t * string) list ->
   typ:[ `Package | `Repo ] ->
-  opam_t:Opam_build.t -> docker_t:Docker_ops.t -> unit -> Docker_build.image t
+  opam_version:[ `V1 | `V2 ] ->
+  opam_repo:Datakit_github.Repo.t * string ->
+  Opam_build.t ->
+  Docker_ops.t -> Docker_build.image Datakit_ci.Term.t
 
 val run_phases :
-  label: string ->
-  extra_remotes:(Datakit_github.Repo.t * string) list ->
   packages:string list Datakit_ci.Term.t ->
-  build:(extra_remotes:(Datakit_github.Repo.t * string) list ->
-    packages:string list ->
-    target:Datakit_ci.Target.t ->
-    distro:string ->
-    ocaml_version:string ->
-    unit -> Docker_build.image Datakit_ci.Term.t) ->
-  build_revdeps:(Docker_ops.t ->
-    string list ->
-    Docker_build.image -> 'a Datakit_ci.Term.t) ->
+  remotes:(Datakit_github.Repo.t * string) list ->
+  typ:[ `Package | `Repo ] ->
+  opam_version:[ `V1 | `V2 ] ->
+  opam_repo:Datakit_github.Repo.t * string ->
+  Opam_build.t ->
   Docker_ops.t ->
   Datakit_ci.Target.t -> (string * string Datakit_ci.Term.t) list
+
+val run_revdeps : ?volume:Fpath.t -> opam_version:[`V1|`V2] ->
+  Docker_ops.t -> string list -> Docker_build.image -> unit t
 
 module type V = sig
   open Datakit_github

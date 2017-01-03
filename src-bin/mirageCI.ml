@@ -14,104 +14,39 @@ module Builder = struct
 
   open Term.Infix
 
-  let opam_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
+  let opam_repo_repo = Repo.v ~user:"ocaml" ~repo:"opam-repository"
   let opam_repo_branch = "master"
-  let opam_repo_remote = opam_repo, opam_repo_branch
+  let opam_repo = opam_repo_repo, opam_repo_branch
+
   let mirage_dev_repo = Repo.v ~user:"mirage" ~repo:"mirage-dev"
   let mirage_dev_branch = "master"
   let mirage_dev_remote = mirage_dev_repo, mirage_dev_branch
-  let primary_ocaml_version = "4.04.0"
-  let compiler_variants = ["4.03.0";"4.04.0_flambda"]
 
   let label = "mir"
   let docker_t = DO.v ~logs ~label ~jobs:4 ()
-  let opam_t = Opam_build.v ~logs ~label ~version:`V1
-  let do_build = Opam_ops.distro_build ~opam_repo:opam_repo_remote ~opam_t ~docker_t
+  let opam_t = Opam_build.v ~logs ~label
 
-  (* XXX TODO temporary until we can query package list automatically *)
   let packages_of_repo target =
     let repo = Target.repo target in
     match Fmt.strf "%a" Repo.pp repo with
-    | "mirage/ocaml-cohttp" -> ["cohttp"]
-    | "mirage/mirage" -> ["mirage";"mirage-types"]
-    | _ -> failwith "TODO package_of_repo"
+    | "mirage/ocaml-cohttp" -> Term.return ["cohttp"]
+    | "mirage/mirage" -> Term.return ["mirage";"mirage-types";"mirage-types-lwt"]
+    | _ -> Term.fail "Unknown repository for packages_of_repo"
 
-  let run_phases ?(extra_remotes=[]) () target =
+  let repo_builder ~opam_version target =
     let packages = packages_of_repo target in
-    let build = do_build ~extra_remotes ~typ:`Package ~target ~packages () in
-    (* phase 1 *)
-    let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
-    let phase1 = ubuntu >>= fun _ -> Term.return () in
-    (* phase 2 revdeps *)
-    let pkg_revdeps =
-      Term.without_logs ubuntu >>=
-      Opam_ops.V1.run_revdeps docker_t (packages_of_repo target) in
-    let phase2 =
-      Term_utils.after phase1 >>= fun () ->
-      pkg_revdeps in
-    (* phase 3 compiler variants *)
-    let compiler_versions =
-      List.map (fun oc ->
-        let t = build "alpine-3.4" oc in
-        ("OCaml "^oc), t
-      ) compiler_variants in
-    let phase3 =
-      Term_utils.after phase2 >>= fun () ->
-      Term.wait_for_all compiler_versions in
-    (* phase 4 *)
-    let debian = build "debian-stable" primary_ocaml_version in
-    let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
-    let centos7 = build "centos-7" primary_ocaml_version in
-    let phase4 =
-      Term_utils.after phase3 >>= fun () ->
-      Term.wait_for_all [
-        "Debian Stable", debian;
-        "Ubuntu 16.04", ubuntu1604;
-        "CentOS7", centos7 ] in
-    (* phase 5 *)
-    let debiant = build "debian-testing" primary_ocaml_version in
-    let debianu = build "debian-unstable" primary_ocaml_version in
-    let opensuse = build "opensuse-42.1" primary_ocaml_version in
-    let fedora24 = build "fedora-24" primary_ocaml_version in
-    let phase5 =
-      Term_utils.after phase4 >>= fun () ->
-      Term.wait_for_all [
-        "Debian Testing", debiant;
-        "Debian Unstable", debianu;
-        "OpenSUSE 42.1", opensuse;
-        "Fedora 24", fedora24 ]
-    in
-    let all_tests = 
-      [ Term_utils.report ~order:1 ~label:"Build" phase1;
-        Term_utils.report ~order:2 ~label:"Revdeps" phase2;
-        Term_utils.report ~order:3 ~label:"Compilers" phase3;
-        Term_utils.report ~order:4 ~label:"Common Distros" phase4;
-        Term_utils.report ~order:5 ~label:"All Distros" phase5;
-      ] in
+    let typ = `Package in
+    let remotes = [mirage_dev_remote] in
+    Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
+
+  let run_phases target =
+    let all_tests = repo_builder ~opam_version:`V1 target in
     match Target.id target with
     |`Ref ["heads";"master"] -> all_tests
-    |`PR _  -> all_tests
+    |`PR _  -> [] (* TODO activate *)
     | _ -> []
 
-(*
-  let build_repo_diff target =
-    let extra_remotes = [ mirage_dev_remote; opam_repo_remote ] in
-    let build_pr_diff =
-       Opam_ops.packages_from_diff docker_t target >>= fun pkgs ->
-       let builds = 
-         List.map (fun pkg ->
-           let t = do_build ~typ:`Package ~packages:[pkg] ~extra_remotes ~distro:"ubuntu-16.04" ~ocaml_version:"4.03.0" () in
-           pkg, t
-         ) pkgs in
-       Term.wait_for_all builds
-    in
-    match Target.id target with
-    | `PR pr -> [Term_utils.report ~order:1 ~label:"Build" build_pr_diff]
-    | _ -> [] *)
-
-  let tests = [
-    Config.project ~id:"mirage/mirage" (run_phases ~extra_remotes:[mirage_dev_remote] ());
-  ]
+  let tests = [ Config.project ~id:"mirage/mirage" run_phases ]
 end
 
 (* Command-line parsing *)

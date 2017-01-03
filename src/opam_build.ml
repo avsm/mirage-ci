@@ -7,49 +7,49 @@
 open !Astring
 open Datakit_ci
 open Datakit_github
+open Opam_docker
 
-let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM1 plugin for Datakit_ci"
+let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 type key = {
   packages: string list;
   distro: string;
   ocaml_version: string;
-  remote_git_rev: string;
-  extra_remotes: (Repo.t * Commit.t) list;
+  remotes: Remote.t list;
   target: Target.v option;
   typ: [`Package | `Repo];
+  opam_version: [`V1 | `V2];
 }
 
 module Opam_key = struct
 
   type t = key
 
-  let ( ++ ) x fn =
-    match x with
-    | 0 -> fn ()
-    | r -> r
-
   let compare_target a b =
     match a,b with
     |Some a, Some b -> Target.compare_v a b
     |_ -> Pervasives.compare a b
 
-  let compare {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes;typ} b =
+  let ( ++ ) x fn =
+    match x with
+    | 0 -> fn ()
+    | r -> r
+
+  let compare {packages;target;distro;ocaml_version;remotes;typ;opam_version} b =
     Pervasives.compare packages b.packages ++ fun () ->
     compare_target target b.target ++ fun () ->
     String.compare distro b.distro ++ fun () ->
     String.compare ocaml_version b.ocaml_version ++ fun () ->
-    String.compare remote_git_rev b.remote_git_rev ++ fun () ->
     Pervasives.compare typ b.typ ++ fun () ->
-    Pervasives.compare extra_remotes b.extra_remotes
+    Pervasives.compare opam_version b.opam_version ++ fun () ->
+    Pervasives.compare remotes b.remotes
 end
 
 
 module Opam_builder = struct
   type t = {
     label : string;
-    version : [ `V1 | `V2 ]
   }
 
   module Key = Opam_key
@@ -72,42 +72,52 @@ module Opam_builder = struct
 
   let name t = "opam:" ^ t.label
 
-  let title t {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes} =
-    let remotes =
+  let title t {target;packages;distro;ocaml_version;remotes;opam_version} =
+    let sremotes =
       String.concat ~sep:":" (
-       List.map (fun (pid,com) ->
-         Fmt.strf "%a:%s" Repo.pp pid
-          (String.with_range ~len:8 (Commit.hash com))
-       ) extra_remotes)
+       List.map (fun {Remote.repo;commit;full_remote} ->
+         Fmt.strf "%a:%s" Repo.pp repo
+          (String.with_range ~len:8 (Commit.hash commit))
+       ) remotes)
       in
-    Fmt.strf "Dockerfile %a %s (%s/%s/opam-repo:%s:%s)"
-      Fmt.(list string) packages t.label distro ocaml_version
-      (String.with_range ~len:6 remote_git_rev) remotes
+    Fmt.strf "Dockerfile %a %s/ocaml-%s/%s)" Fmt.(list string) packages distro ocaml_version sremotes
 
-  let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes;typ} =
-    let (module OD : Opam_docker.V) =
-      match t.version with
+  let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remotes;typ;opam_version} =
+    let (module OD:Opam_docker.V) =
+      match opam_version with
       | `V1 -> (module Opam_docker.V1)
       | `V2 -> (module Opam_docker.V2) in
+    (* The remotes has a full list of all of the remotes, so we need to filter it to selectively
+       select the mainline remote (for /home/opam/opam-repository) vs the extra ones *)
+    let opam_repo_remotes, remotes = List.partition (fun {Remote.full_remote;_} -> full_remote) remotes in
+    let opam_repo_rev =
+      match opam_repo_remotes with
+      | [{Remote.commit;_}] -> Commit.hash commit
+      | [] -> failwith "No full remote repo found"
+      | _ -> failwith "Only one full remote repo is allowed"
+    in
     let target_d =
-      match typ,target with
-      | _,None -> Dockerfile.empty
-      | `Package, Some target ->
-         let commit = Commit.hash (head_of_target target) in
-         let branch = branch_of_target target in
-         let {Repo.user; repo} = project_of_target target in
-         let (@@) = Dockerfile.(@@) in (* todo add Dockerfile.Infix *)
-         OD.set_opam_repo_rev remote_git_rev @@
-         OD.clone_src ~user ~repo ~branch ~commit ~packages
-      | `Repo, Some target ->
-         let commit = Commit.hash (head_of_target target) in
-         let branch = branch_of_target target in
-         OD.set_opam_repo_rev ~branch commit
+      let (@@) = Dockerfile.(@@) in (* todo add Dockerfile.Infix *)
+      match target with
+      | None -> (* No target to build so do nothing *)
+          Dockerfile.empty
+      | Some target ->
+          let commit = Commit.hash (head_of_target target) in
+          let branch = branch_of_target target in
+          match typ with
+          | `Package -> (* Build and pin an OPAM package repository *)
+              OD.set_opam_repo_rev opam_repo_rev @@
+              let {Repo.user; repo} = project_of_target target in
+              OD.clone_src ~user ~repo ~branch ~commit ~packages
+          | `Repo -> (* Build a package set from an OPAM remote repo *)
+              let commit = Commit.hash (head_of_target target) in
+              let branch = branch_of_target target in
+              OD.set_opam_repo_rev ~branch commit
     in
     let dockerfile =
       let open! Dockerfile in
       OD.base ~ocaml_version ~distro @@
-      OD.add_remotes extra_remotes @@
+      OD.add_remotes remotes @@
       target_d @@
       run "opam update -uy"
     in
@@ -117,24 +127,21 @@ module Opam_builder = struct
     Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list string)) packages distro ocaml_version;
     let data = Dockerfile_conv.to_cstruct dockerfile in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "Dockerfile.sexp") data >>*= fun () ->
-    output (Dockerfile.string_of_t dockerfile);
+    output (Dockerfile.string_of_t dockerfile ^ "\n");
     Lwt.return  (Ok dockerfile)
 
-  let branch t {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes}=
-    let targ =
-      match target with
-      | None -> ""
-      | Some target ->
-          let id = id_of_target target in
-          let proj = project_of_target target in
-          let commit = Commit.hash (head_of_target target) in
-          Fmt.strf "%s-%a-%s"  id Repo.pp proj commit in
-    let extra = String.concat ~sep:":" 
-       (List.map (fun (pid,commit) -> Fmt.strf "%a#%s"
-        Repo.pp pid (Commit.hash commit)) extra_remotes) in
-    let version = match t.version with `V1 -> "v1" | `V2 -> "v2" in
-    Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%s-%a" targ
-      t.label version distro ocaml_version remote_git_rev extra (Fmt.(list string)) packages |>
+  let branch t {target;packages;distro;ocaml_version;remotes;opam_version} =
+    (* TODO upstream *)
+    let target_v_pp ppf t =
+      match t with
+      |`PR pr -> PR.pp ppf pr
+      |`Ref rl -> Ref.pp ppf rl
+    in
+    let target = Fmt.(strf "%a" (option target_v_pp) target) in
+    let remotes = Fmt.(strf "%a" (list Remote.pp) remotes) in
+    let packages = String.concat ~sep:" " packages in
+    let opam_version = match opam_version with `V1 -> "v1" | `V2 -> "v2" in
+    Fmt.strf "%s%s%s%s%s%s" target packages distro ocaml_version remotes opam_version |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =
@@ -148,11 +155,12 @@ module Opam_cache = Cache.Make(Opam_builder)
 
 type t = Opam_cache.t
 
-let v ~version ~logs ~label =
-  Opam_cache.create ~logs { Opam_builder.label; version }
+let v ~logs ~label =
+  Opam_cache.create ~logs { Opam_builder.label }
 
-let run config pr =
-  Opam_cache.find config Opam_builder.NoContext pr
+let run ?(packages=[]) ?target ~distro ~ocaml_version ~remotes ~typ ~opam_version t =
+  let key = { packages; distro; ocaml_version; remotes; target; typ; opam_version } in
+  Opam_cache.find t Opam_builder.NoContext key
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
