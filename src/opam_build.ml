@@ -90,12 +90,13 @@ module Opam_builder = struct
     (* The remotes has a full list of all of the remotes, so we need to filter it to selectively
        select the mainline remote (for /home/opam/opam-repository) vs the extra ones *)
     let opam_repo_remotes, remotes = List.partition (fun {Remote.full_remote;_} -> full_remote) remotes in
-    let opam_repo_rev =
+    let opam_repo_remote =
       match opam_repo_remotes with
-      | [{Remote.commit;_}] -> Commit.hash commit
+      | [hd] -> hd
       | [] -> failwith "No full remote repo found"
       | _ -> failwith "Only one full remote repo is allowed"
     in
+    let opam_repo_rev = Commit.hash (opam_repo_remote.Remote.commit) in
     let target_d =
       let (@@) = Dockerfile.(@@) in (* todo add Dockerfile.Infix *)
       match target with
@@ -106,7 +107,7 @@ module Opam_builder = struct
           let branch = branch_of_target target in
           match typ with
           | `Package -> (* Build and pin an OPAM package repository *)
-              OD.set_opam_repo_rev opam_repo_rev @@
+              OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
               let {Repo.user; repo} = project_of_target target in
               OD.clone_src ~user ~repo ~branch ~commit ~packages
           | `Repo -> (* Build a package set from an OPAM remote repo *)

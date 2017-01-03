@@ -20,7 +20,7 @@ end
 module type V = sig
   val add_remotes : Remote.t list -> Dockerfile.t
 
-  val set_opam_repo_rev : ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
+  val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
 
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
 

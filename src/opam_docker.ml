@@ -33,13 +33,21 @@ end
 module type V = sig
   val add_remotes : Remote.t list -> Dockerfile.t
 
-  val set_opam_repo_rev : ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
+  val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
 
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
 
   val clone_src : user:string -> repo:string -> branch:string -> commit:string ->
       packages:string list -> Dockerfile.t
 end
+
+(* If remote is not ocaml/opam-repository, we need to fetch its refs *)
+let set_origin =
+  let open Dockerfile in
+  function
+  | Some {Remote.repo;commit;_} when repo.Repo.user <> "ocaml" || repo.Repo.repo <> "opam-repository" ->
+     run "git remote set-url origin git://github.com/%s/%s" repo.Repo.user repo.Repo.repo
+  | _ -> empty
 
 module V1 = struct
   open !Dockerfile
@@ -56,8 +64,9 @@ module V1 = struct
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam"
 
-  let set_opam_repo_rev ?(branch="master") ?(dst_branch="cibranch") rev =
+  let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
+    set_origin remote @@
     run "git fetch origin %s:%s" branch dst_branch @@
     run "git checkout %s" rev
 
@@ -75,9 +84,10 @@ module V2 = struct
   let add_remotes = V1.add_remotes
   let clone_src = V1.clone_src
 
-  let set_opam_repo_rev ?(branch="master") ?(dst_branch="cibranch") rev =
+  let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
     run "git checkout master" @@
+    set_origin remote @@
     run "git fetch origin %s:%s" branch dst_branch @@
     run "git branch -D v2" @@
     run "git checkout -b v2 %s" rev @@
