@@ -128,10 +128,11 @@ module V2 = struct
     List.map (fun s -> String.trim s)
 
   let list_revdeps {run_t} image pkg =
-    let quoted_cmd = Fmt.strf "\"opam list -s --color=never --depends-on %s --installable | grep -v '^#'\"" pkg in
-    let cmd = ["sh";"-c";quoted_cmd] in
-    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
-    String.cuts ~empty:false ~sep:"\n"
+    let cmd = ["opam";"list";"-s";"--color=never";"--depends-on";pkg;"--installable"] in
+    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|= fun r ->
+    String.cuts ~empty:false ~sep:"\n" r |>
+    List.filter (fun s -> not (String.is_prefix ~affix:"#" s)) |>
+    List.map (fun s -> String.trim s)
 
   let run_revdeps ?volume ({run_t;_} as t) packages image =
     List.map (fun pkg ->
