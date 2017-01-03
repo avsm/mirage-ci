@@ -38,12 +38,12 @@ let mirage_opam_repository = repo ~user:"mirage" ~repo:"opam-repository" ~branch
 
 module type V = sig
   val add_remotes : Remote.t list -> Dockerfile.t
-
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
-
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
-
   val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
+  val add_local_pins : string list -> Dockerfile.t
+  val switch_local_remote : Dockerfile.t
+  val add_local_remote : Dockerfile.t
 end
 
 (* If remote is not ocaml/opam-repository, we need to fetch its refs *)
@@ -80,6 +80,16 @@ module V1 = struct
     workdir "/home/opam/src" @@
     run "git fetch origin %s:cibranch" branch @@
     run "git checkout %s" commit
+
+  let add_local_pins packages =
+    empty @@@
+    List.map (run "opam pin add -n %s /home/opam/src") packages
+
+  let switch_local_remote =
+    run "opam remote set-url default /home/opam/src"
+
+  let add_local_remote =
+    run "opam remote add local /home/opam/src"
 end
 
 module V2 = struct
@@ -87,7 +97,16 @@ module V2 = struct
 
   let add_remotes = V1.add_remotes
   let clone_src = V1.clone_src
+  let add_local_pins = V1.add_local_pins
 
+  let switch_local_remote =
+    run "opam admin upgrade-format" @@
+    run "opam remote set-url default /home/opam/src"
+   
+  let add_local_remote =
+    run "opam admin upgrade-format" @@
+    run "opam remote add local /home/opam/src"
+    
   let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
     run "git checkout master" @@
@@ -100,7 +119,7 @@ module V2 = struct
     run "git commit -a -m 'upgrade format to opam2'"
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev"
+    from ~tag:(distro^"-"^ocaml_version) "ocaml/opam-dev"
 
 end
 

@@ -23,12 +23,12 @@ val mirage_opam_repository : Repo.t * string
 
 module type V = sig
   val add_remotes : Remote.t list -> Dockerfile.t
-
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
-
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
-
   val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
+  val add_local_pins : string list -> Dockerfile.t
+  val switch_local_remote : Dockerfile.t
+  val add_local_remote : Dockerfile.t
 end
 
 module V1 : V

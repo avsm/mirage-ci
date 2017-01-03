@@ -99,7 +99,6 @@ module Opam_builder = struct
     let opam_repo_rev = Commit.hash (opam_repo_remote.Remote.commit) in
     let target_d =
       let (@@) = Dockerfile.(@@) in (* todo add Dockerfile.Infix *)
-      let (@@@) = Dockerfile.(@@@) in (* todo add Dockerfile.Infix *)
       match target with
       | None -> (* No target to build so do nothing *)
           Dockerfile.empty
@@ -110,15 +109,14 @@ module Opam_builder = struct
           match typ with
           | `Package -> (* Build and pin an OPAM package repository *)
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
-              OD.clone_src ~user ~repo ~branch ~commit @@@
-              List.map (Dockerfile.run "opam pin add -n %s /home/opam/src") packages
+              OD.clone_src ~user ~repo ~branch ~commit @@
+              OD.add_local_pins packages
           | `Repo when repo = "opam-repository" ->
               OD.clone_src ~user ~repo ~branch ~commit @@
-              Dockerfile.run "opam remote set-url default /home/opam/src"
+              OD.switch_local_remote
           | `Repo ->
               OD.clone_src ~user ~repo ~branch ~commit @@
-              OD.set_opam_repo_rev ~remote:opam_repo_remote ~branch opam_repo_rev @@
-              Dockerfile.run "opam remote add local /home/opam/src"
+              OD.add_local_remote
     in
     let dockerfile =
       let open! Dockerfile in
