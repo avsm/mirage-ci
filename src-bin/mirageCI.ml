@@ -14,14 +14,6 @@ module Builder = struct
 
   open Term.Infix
 
-  let opam_repo_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
-  let opam_repo_branch = "master"
-  let opam_repo = opam_repo_repo, opam_repo_branch
-
-  let mirage_dev_repo = Repo.v ~user:"mirage" ~repo:"mirage-dev"
-  let mirage_dev_branch = "master"
-  let mirage_dev_remote = mirage_dev_repo, mirage_dev_branch
-
   let label = "mir"
   let docker_t = DO.v ~logs ~label ~jobs:4 ()
   let opam_t = Opam_build.v ~logs ~label
@@ -35,15 +27,16 @@ module Builder = struct
 
   let repo_builder ~opam_version target =
     let packages = packages_of_repo target in
+    let opam_repo = Opam_docker.mirage_opam_repository in
     let typ = `Package in
-    let remotes = [mirage_dev_remote] in
+    let remotes = [Opam_docker.repo ~user:"mirage" ~repo:"mirage-dev" ~branch:"master"] in
     Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
   let run_phases target =
     let all_tests = repo_builder ~opam_version:`V1 target in
     match Target.id target with
     |`Ref ["heads";"master"] -> all_tests
-    |`PR _  -> [] (* TODO activate *)
+    |`PR _  -> all_tests
     | _ -> []
 
   let tests = [ Config.project ~id:"mirage/mirage" run_phases ]

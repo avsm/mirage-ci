@@ -30,6 +30,12 @@ module Remote = struct
       Repo.pp repo Commit.pp commit full_remote
 end
 
+let repo ~user ~repo ~branch =
+  Repo.v ~user ~repo, branch
+
+let ocaml_opam_repository = repo ~user:"ocaml" ~repo:"opam-repository" ~branch:"master"
+let mirage_opam_repository = repo ~user:"mirage" ~repo:"opam-repository" ~branch:"master"
+
 module type V = sig
   val add_remotes : Remote.t list -> Dockerfile.t
 
