@@ -115,7 +115,7 @@ module Opam_builder = struct
               let commit = Commit.hash (head_of_target target) in
               let branch = branch_of_target target in
               Live_log.write log (Fmt.strf "Setting opam_repo_rev to branch %s" branch);
-              OD.set_opam_repo_rev ~branch commit
+              OD.set_opam_repo_rev ~remote:opam_repo_remote ~branch commit
     in
     let dockerfile =
       let open! Dockerfile in
