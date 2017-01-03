@@ -119,7 +119,7 @@ module V2 = struct
     run "git commit -a -m 'upgrade format to opam2'"
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^"-"^ocaml_version) "ocaml/opam-dev"
+    from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev"
 
 end
 
