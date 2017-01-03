@@ -43,8 +43,7 @@ module type V = sig
 
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
 
-  val clone_src : user:string -> repo:string -> branch:string -> commit:string ->
-      packages:string list -> Dockerfile.t
+  val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
 end
 
 (* If remote is not ocaml/opam-repository, we need to fetch its refs *)
@@ -76,12 +75,11 @@ module V1 = struct
     run "git fetch origin %s:%s" branch dst_branch @@
     run "git checkout %s" rev
 
-  let clone_src ~user ~repo ~branch ~commit ~packages =
+  let clone_src ~user ~repo ~branch ~commit =
     run "git clone git://github.com/%s/%s /home/opam/src" user repo @@
     workdir "/home/opam/src" @@
     run "git fetch origin %s:cibranch" branch @@
-    run "git checkout %s" commit @@@
-    List.map (run "opam pin add -n %s /home/opam/src") packages
+    run "git checkout %s" commit
 end
 
 module V2 = struct

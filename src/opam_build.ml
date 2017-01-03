@@ -18,7 +18,7 @@ type key = {
   ocaml_version: string;
   remotes: Remote.t list;
   target: Target.v option;
-  typ: [`Package | `Repo];
+  typ: [`Package | `Repo ];
   opam_version: [`V1 | `V2];
 }
 
@@ -56,6 +56,7 @@ module Opam_builder = struct
   type context = NoContext
   type value = Dockerfile.t
 
+  (* TODO upstream to Datakit_ci *)
   let repo_of_target = function
     | `PR pr -> PR.repo pr
     | `Ref rf -> Ref.repo rf
@@ -98,21 +99,26 @@ module Opam_builder = struct
     let opam_repo_rev = Commit.hash (opam_repo_remote.Remote.commit) in
     let target_d =
       let (@@) = Dockerfile.(@@) in (* todo add Dockerfile.Infix *)
+      let (@@@) = Dockerfile.(@@@) in (* todo add Dockerfile.Infix *)
       match target with
       | None -> (* No target to build so do nothing *)
           Dockerfile.empty
       | Some target ->
           let commit = Commit.hash (Target.head target) in
           let branch = branch_of_target target in
+          let {Repo.user; repo} = repo_of_target target in
           match typ with
           | `Package -> (* Build and pin an OPAM package repository *)
-              Live_log.write log (Fmt.strf "Setting opam_repo_rev to remote %a" Remote.pp opam_repo_remote);
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
-              let {Repo.user; repo} = repo_of_target target in
-              OD.clone_src ~user ~repo ~branch ~commit ~packages
-          | `Repo -> (* Build a package set from an OPAM remote repo *)
-              Live_log.write log (Fmt.strf "Setting opam_repo_rev to branch %s" branch);
-              OD.set_opam_repo_rev ~remote:opam_repo_remote ~branch commit
+              OD.clone_src ~user ~repo ~branch ~commit @@@
+              List.map (Dockerfile.run "opam pin add -n %s /home/opam/src") packages
+          | `Repo when repo = "opam-repository" ->
+              OD.clone_src ~user ~repo ~branch ~commit @@
+              Dockerfile.run "opam remote set-url default /home/opam/src"
+          | `Repo ->
+              OD.clone_src ~user ~repo ~branch ~commit @@
+              OD.set_opam_repo_rev ~remote:opam_repo_remote ~branch opam_repo_rev @@
+              Dockerfile.run "opam remote add local /home/opam/src"
     in
     let dockerfile =
       let open! Dockerfile in

@@ -28,8 +28,7 @@ module type V = sig
 
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
 
-  val clone_src : user:string -> repo:string -> branch:string -> commit:string ->
-      packages:string list -> Dockerfile.t
+  val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
 end
 
 module V1 : V
