@@ -56,18 +56,17 @@ module Opam_builder = struct
   type context = NoContext
   type value = Dockerfile.t
 
-  let id_of_target = function
-    | `PR pr -> string_of_int (PR.number pr)
-    | `Ref rf -> Fmt.strf "%a" Ref.pp_name (Ref.name rf)
-
-  let project_of_target = function
+  let repo_of_target = function
     | `PR pr -> PR.repo pr
     | `Ref rf -> Ref.repo rf
 
-  let head_of_target = Target.head
-
-  let branch_of_target = function
-    | `PR pr -> Printf.sprintf "pull/%d/head" (PR.number pr)
+  let branch_of_target target =
+    let target_repo = repo_of_target target in
+    match target with
+    | `PR pr ->
+         if target_repo.Repo.repo = "opam-repository" then
+           Printf.sprintf "pull/%d/head" (PR.number pr)
+         else "origin"
     | `Ref r -> Fmt.strf "%a" Ref.pp_name (Ref.name r)
 
   let name t = "opam:" ^ t.label
@@ -103,17 +102,15 @@ module Opam_builder = struct
       | None -> (* No target to build so do nothing *)
           Dockerfile.empty
       | Some target ->
-          let commit = Commit.hash (head_of_target target) in
+          let commit = Commit.hash (Target.head target) in
           let branch = branch_of_target target in
           match typ with
           | `Package -> (* Build and pin an OPAM package repository *)
               Live_log.write log (Fmt.strf "Setting opam_repo_rev to remote %a" Remote.pp opam_repo_remote);
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
-              let {Repo.user; repo} = project_of_target target in
+              let {Repo.user; repo} = repo_of_target target in
               OD.clone_src ~user ~repo ~branch ~commit ~packages
           | `Repo -> (* Build a package set from an OPAM remote repo *)
-              let commit = Commit.hash (head_of_target target) in
-              let branch = branch_of_target target in
               Live_log.write log (Fmt.strf "Setting opam_repo_rev to branch %s" branch);
               OD.set_opam_repo_rev ~remote:opam_repo_remote ~branch commit
     in
