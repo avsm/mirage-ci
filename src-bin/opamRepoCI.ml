@@ -22,69 +22,29 @@ module Builder = struct
 
   let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:24 ()
-  let opam_t = Opam_build.v ~logs ~label ~version:`V1
-  let do_build = Opam_ops.distro_build ~opam_repo:opam_repo_remote ~opam_t ~docker_t
+  let opam_v1_t = Opam_build.v ~logs ~label ~version:`V1
+  let opam_v2_t = Opam_build.v ~logs ~label ~version:`V2
 
-  let run_phases ?(extra_remotes=[]) () (target:Target.t) =
-    let build ~distro ~ocaml_version =
-      Opam_ops.packages_from_diff docker_t target >>= fun packages ->
-      do_build ~typ:`Repo ~target ~extra_remotes ~packages ~distro ~ocaml_version () in
-    (* phase 1 *)
-    let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
-    let phase1 = ubuntu >>= fun _ -> Term.return () in
-    (* phase 2 revdeps *)
-    let pkg_revdeps =
-      Term.without_logs ubuntu >>= fun img ->
-      Opam_ops.packages_from_diff docker_t target >>= fun packages ->
-      Opam_ops.V1.run_revdeps docker_t packages img in
-    let phase2 =
-      Term_utils.after phase1 >>= fun () ->
-      pkg_revdeps in
-    (* phase 3 compiler variants *)
-    let compiler_versions =
-      List.map (fun oc ->
-        let t = build "alpine-3.5" oc in
-        ("OCaml "^oc), t
-      ) compiler_variants in
-    let phase3 =
-      Term_utils.after phase2 >>= fun () ->
-      Term.wait_for_all compiler_versions in
-    (* phase 4 *)
-    let debian = build "debian-stable" primary_ocaml_version in
-    let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
-    let centos7 = build "centos-7" primary_ocaml_version in
-    let phase4 =
-      Term_utils.after phase3 >>= fun () ->
-      Term.wait_for_all [
-        "Debian Stable", debian;
-        "Ubuntu 16.04", ubuntu1604;
-        "CentOS7", centos7 ] in
-    (* phase 5 *)
-    let debiant = build "debian-testing" primary_ocaml_version in
-    let debianu = build "debian-unstable" primary_ocaml_version in
-    let opensuse = build "opensuse-42.1" primary_ocaml_version in
-    let fedora24 = build "fedora-24" primary_ocaml_version in
-    let phase5 =
-      Term_utils.after phase4 >>= fun () ->
-      Term.wait_for_all [
-        "Debian Testing", debiant;
-        "Debian Unstable", debianu;
-        "OpenSUSE 42.1", opensuse;
-        "Fedora 24", fedora24 ]
-    in
-    let all_tests = 
-      [ Term_utils.report ~order:1 ~label:"Build" phase1;
-        Term_utils.report ~order:2 ~label:"Revdeps" phase2;
-        Term_utils.report ~order:3 ~label:"Compilers" phase3;
-        Term_utils.report ~order:4 ~label:"Common Distros" phase4;
-        Term_utils.report ~order:5 ~label:"All Distros" phase5;
-      ] in
-    match Target.id target with
-    |`PR _  -> all_tests
-    | _ -> []
+  let repo_builder_v1 target =
+    let packages = Opam_ops.packages_from_diff docker_t target in
+    let build = Opam_ops.distro_build ~typ:`Repo ~opam_repo:opam_repo_remote ~opam_t:opam_v1_t ~docker_t in
+    let build_revdeps = Opam_ops.V1.run_revdeps in
+    let extra_remotes = [] in
+    Opam_ops.run_phases ~label:"V1.2" ~extra_remotes ~packages ~build ~build_revdeps docker_t target 
 
+  let repo_builder_v2 target =
+    let packages = Opam_ops.packages_from_diff docker_t target in
+    let build = Opam_ops.distro_build ~typ:`Repo ~opam_repo:opam_repo_remote ~opam_t:opam_v2_t ~docker_t in
+    let build_revdeps = Opam_ops.V2.run_revdeps in
+    let extra_remotes = [] in
+    Opam_ops.run_phases ~label:"V2.0" ~extra_remotes ~packages ~build ~build_revdeps docker_t target 
+
+  let run_phases target =
+    (repo_builder_v1 target) @
+    (repo_builder_v2 target)
+ 
   let tests = [
-    Config.project ~id:"ocaml/opam-repository" (run_phases ())
+    Config.project ~id:"ocaml/opam-repository" run_phases
   ]
 end
 

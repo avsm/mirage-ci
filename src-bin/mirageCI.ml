@@ -93,6 +93,7 @@ module Builder = struct
     |`PR _  -> all_tests
     | _ -> []
 
+(*
   let build_repo_diff target =
     let extra_remotes = [ mirage_dev_remote; opam_repo_remote ] in
     let build_pr_diff =
@@ -106,11 +107,10 @@ module Builder = struct
     in
     match Target.id target with
     | `PR pr -> [Term_utils.report ~order:1 ~label:"Build" build_pr_diff]
-    | _ -> []
+    | _ -> [] *)
 
   let tests = [
     Config.project ~id:"mirage/mirage" (run_phases ~extra_remotes:[mirage_dev_remote] ());
-    Config.project ~id:"mirage/mirage-dev" build_repo_diff;
   ]
 end
 

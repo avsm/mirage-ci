@@ -194,7 +194,7 @@ let packages_from_diff {pull_t;run_t;_} target =
     Docker_run.run ~tag:"unikernel/mirage-ci:opam-diff" ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
-let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~ocaml_version ~typ ~opam_t ~docker_t () =
+let distro_build ~extra_remotes ~packages ~target ~opam_repo ~distro ~ocaml_version ~typ ~opam_t ~docker_t () =
   Term.branch_head (fst opam_repo) (snd opam_repo) >>= fun opam_repo_commit ->
   Term_utils.term_map_s (fun (repo,branch) ->
     Term.branch_head repo branch >|= fun commit ->
@@ -203,9 +203,7 @@ let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~
   let remote_git_rev = Commit.hash opam_repo_commit in
   let pkg_target = String.concat ~sep:" " packages in
   let hum = Fmt.strf "base image for opam install %s" pkg_target in
-  (match target with
-   | None -> Term.return None
-   | Some target -> Term.target target >|= fun t -> Some t) >>= fun target ->
+  Term.target target >>= fun target -> let target = Some target in (* TODO cleanup target *)
   Opam_build.(run opam_t {packages;target;distro;ocaml_version;remote_git_rev;extra_remotes;typ}) >>=
   Docker_build.run docker_t.Docker_ops.build_t ~hum >>= fun img ->
   build_package docker_t img pkg_target
@@ -213,11 +211,10 @@ let distro_build ?(extra_remotes=[]) ?(packages=[]) ?target ~opam_repo ~distro ~
 let primary_ocaml_version = "4.04.0"
 let compiler_variants = ["4.02.3";"4.03.0";"4.04.0_flambda"]
 
-let run_phases ~(packages:string list Term.t) ~build ~build_revdeps (docker_t:Docker_ops.t) (target:Target.t) =
+let run_phases ~label ~extra_remotes ~(packages:string list Term.t) ~build ~build_revdeps (docker_t:Docker_ops.t) (target:Target.t) =
     let build ~distro ~ocaml_version =
       packages >>= fun packages ->
-      build ~target ~packages ~distro ~ocaml_version () in
- 
+      build ~extra_remotes ~packages ~target ~distro ~ocaml_version () in
     (* phase 1 *)
     let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
     let phase1 = ubuntu >>= fun _ -> Term.return () in
@@ -261,11 +258,12 @@ let run_phases ~(packages:string list Term.t) ~build ~build_revdeps (docker_t:Do
         "OpenSUSE 42.1", opensuse;
         "Fedora 24", fedora24 ]
     in
-    [ Term_utils.report ~order:1 ~label:"Build" phase1;
-        Term_utils.report ~order:2 ~label:"Revdeps" phase2;
-        Term_utils.report ~order:3 ~label:"Compilers" phase3;
-        Term_utils.report ~order:4 ~label:"Common Distros" phase4;
-        Term_utils.report ~order:5 ~label:"All Distros" phase5;
+    let lf x = Fmt.strf "%s %s" label x in
+    [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;
+        Term_utils.report ~order:2 ~label:(lf "Revdeps") phase2;
+        Term_utils.report ~order:3 ~label:(lf "Compilers") phase3;
+        Term_utils.report ~order:4 ~label:(lf "Common Distros") phase4;
+        Term_utils.report ~order:5 ~label:(lf "All Distros") phase5;
     ]
  
 

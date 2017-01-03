@@ -10,9 +10,9 @@ open Datakit_ci.Term
 val packages_from_diff : Docker_ops.t -> Datakit_ci.Target.t -> string list t
 
 val distro_build :
-  ?extra_remotes:(Datakit_github.Repo.t * string) list ->
-  ?packages:string list ->
-  ?target:Datakit_ci.Target.t ->
+  extra_remotes:(Datakit_github.Repo.t * string) list ->
+  packages:string list ->
+  target:Datakit_ci.Target.t ->
   opam_repo:Datakit_github.Repo.t * string ->
   distro:string ->
   ocaml_version:string ->
@@ -20,9 +20,12 @@ val distro_build :
   opam_t:Opam_build.t -> docker_t:Docker_ops.t -> unit -> Docker_build.image t
 
 val run_phases :
+  label: string ->
+  extra_remotes:(Datakit_github.Repo.t * string) list ->
   packages:string list Datakit_ci.Term.t ->
-  build:(target:Datakit_ci.Target.t ->
+  build:(extra_remotes:(Datakit_github.Repo.t * string) list ->
     packages:string list ->
+    target:Datakit_ci.Target.t ->
     distro:string ->
     ocaml_version:string ->
     unit -> Docker_build.image Datakit_ci.Term.t) ->
