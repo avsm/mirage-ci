@@ -17,6 +17,7 @@ module Builder = struct
   let label = "mir"
   let docker_t = DO.v ~logs ~label ~jobs:4 ()
   let opam_t = Opam_build.v ~logs ~label
+  let mirage_dev = [Opam_docker.repo ~user:"mirage" ~repo:"mirage-dev" ~branch:"master"]
 
   let packages_of_repo target =
     let repo = Target.repo target in
@@ -25,24 +26,23 @@ module Builder = struct
     | "mirage/mirage" -> Term.return ["mirage";"mirage-types";"mirage-types-lwt"]
     | _ -> Term.fail "Unknown repository for packages_of_repo"
 
-  let repo_builder ~opam_version ~typ target =
+  let repo_builder ~opam_version ~typ ~remotes target =
     let packages = match typ with
       |`Package -> packages_of_repo target
       |`Repo -> Opam_ops.packages_from_diff docker_t target in
     let opam_repo = Opam_docker.mirage_opam_repository in
-    let remotes = [Opam_docker.repo ~user:"mirage" ~repo:"mirage-dev" ~branch:"master"] in
     Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
-  let run_phases typ target =
-    let all_tests = repo_builder ~opam_version:`V2 ~typ target in
+  let run_phases typ remotes target =
+    let all_tests = repo_builder ~opam_version:`V2 ~typ ~remotes target in
     match Target.id target with
     |`Ref ["heads";"master"] -> all_tests
     |`PR _  -> all_tests
     | _ -> []
 
   let tests = [
-    Config.project ~id:"mirage/mirage" (run_phases `Package);
-    Config.project ~id:"mirage/mirage-dev" (run_phases `Repo)
+    Config.project ~id:"mirage/mirage" (run_phases `Package mirage_dev);
+    Config.project ~id:"mirage/mirage-dev" (run_phases `Repo [])
   ]
 end
 
