@@ -40,8 +40,10 @@ module Builder = struct
     Opam_ops.run_phases ~label:"V2.0" ~extra_remotes ~packages ~build ~build_revdeps docker_t target 
 
   let run_phases target =
-    (repo_builder_v1 target) @
-    (repo_builder_v2 target)
+    let tests = (repo_builder_v1 target) @ (repo_builder_v2 target) in
+    match Target.id target with
+    |`PR 8189  -> tests
+    | _ -> []
  
   let tests = [
     Config.project ~id:"ocaml/opam-repository" run_phases
