@@ -132,8 +132,9 @@ module Opam_builder = struct
     let extra = String.concat ~sep:":" 
        (List.map (fun (pid,commit) -> Fmt.strf "%a#%s"
         Repo.pp pid (Commit.hash commit)) extra_remotes) in
-    Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%a" targ
-      t.label distro ocaml_version remote_git_rev extra (Fmt.(list string)) packages |>
+    let version = match t.version with `V1 -> "v1" | `V2 -> "v2" in
+    Fmt.strf "opam-%s-%s-%s-%s-%s-%s-%s-%a" targ
+      t.label version distro ocaml_version remote_git_rev extra (Fmt.(list string)) packages |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =
