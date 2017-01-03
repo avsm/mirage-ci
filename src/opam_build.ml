@@ -107,12 +107,14 @@ module Opam_builder = struct
           let branch = branch_of_target target in
           match typ with
           | `Package -> (* Build and pin an OPAM package repository *)
+              Live_log.write log (Fmt.strf "Setting opam_repo_rev to remote %a" Remote.pp opam_repo_remote);
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
               let {Repo.user; repo} = project_of_target target in
               OD.clone_src ~user ~repo ~branch ~commit ~packages
           | `Repo -> (* Build a package set from an OPAM remote repo *)
               let commit = Commit.hash (head_of_target target) in
               let branch = branch_of_target target in
+              Live_log.write log (Fmt.strf "Setting opam_repo_rev to branch %s" branch);
               OD.set_opam_repo_rev ~branch commit
     in
     let dockerfile =
