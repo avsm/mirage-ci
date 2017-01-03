@@ -50,6 +50,7 @@ module Docker_runner = struct
     let vols = List.flatten (List.map (fun (h,c) -> ["-v";(Fmt.strf "%a:%a" Fpath.pp h Fpath.pp c)]) volumes) in
     let cmd = Array.of_list ("docker"::"run"::"--rm"::"--tmpfs"::"/tmp"::vols@img::cmd) in
     let cmd_output = Buffer.create 1024 in
+    Live_log.heading log "Using base image %s" img;
     let output = tee [ Buffer.add_string cmd_output; Live_log.write log ] in
     Monitored_pool.use ~log ~label:"docker run" t.pool job_id (fun () ->
       Utils.with_timeout ~switch t.timeout (fun switch ->
