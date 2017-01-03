@@ -42,7 +42,7 @@ module Builder = struct
   let run_phases target =
     let tests = (repo_builder_v1 target) @ (repo_builder_v2 target) in
     match Target.id target with
-    |`PR 8189  -> tests
+    |`PR _  -> tests
     | _ -> []
  
   let tests = [
