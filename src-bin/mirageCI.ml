@@ -14,7 +14,7 @@ module Builder = struct
 
   open Term.Infix
 
-  let opam_repo_repo = Repo.v ~user:"ocaml" ~repo:"opam-repository"
+  let opam_repo_repo = Repo.v ~user:"mirage" ~repo:"opam-repository"
   let opam_repo_branch = "master"
   let opam_repo = opam_repo_repo, opam_repo_branch
 
