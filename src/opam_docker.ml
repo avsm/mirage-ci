@@ -8,6 +8,17 @@ open !Astring
 open Datakit_ci
 open Datakit_github
 
+module type V = sig
+  val add_remotes : (Repo.t * Commit.t) list -> Dockerfile.t
+
+  val set_opam_repo_rev : ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
+
+  val base : ocaml_version:string -> distro:string -> Dockerfile.t
+
+  val clone_src : user:string -> repo:string -> branch:string -> commit:string ->
+      packages:string list -> Dockerfile.t
+end
+
 module V1 = struct
   open !Dockerfile
 
@@ -20,53 +31,52 @@ module V1 = struct
     ) rs |> fun remotes ->
     empty @@@ remotes
 
-  let add_pins packages =
-    List.map (run "opam pin add -n %s /home/opam/src") packages |> fun pins ->
-    empty @@@ pins
-
-  let set_opam_repo_rev rev =
-    workdir "/home/opam/opam-repository" @@
-    run "git pull origin master" @@
-    run "git checkout %s" rev @@
-    run "opam update -uy"
-
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam"
 
-  let clone_src ~user ~repo ~branch ~commit () =
+  let set_opam_repo_rev ?(branch="master") ?(dst_branch="cibranch") rev =
+    workdir "/home/opam/opam-repository" @@
+    run "git fetch origin %s:%s" branch dst_branch @@
+    run "git checkout %s" rev
+
+  let clone_src ~user ~repo ~branch ~commit ~packages =
     run "git clone git://github.com/%s/%s /home/opam/src" user repo @@
     workdir "/home/opam/src" @@
     run "git fetch origin %s:cibranch" branch @@
-    run "git checkout %s" commit
+    run "git checkout %s" commit @@@
+    List.map (run "opam pin add -n %s /home/opam/src") packages
 end
 
 module V2 = struct
   open !Dockerfile
 
   let add_remotes = V1.add_remotes
-  let add_pins = V1.add_pins
+  let clone_src = V1.clone_src
 
-  let set_opam_repo_rev rev =
+  let set_opam_repo_rev ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
     run "git checkout master" @@
-    run "git pull origin master" @@
+    run "git fetch origin %s:%s" branch dst_branch @@
     run "git branch -D v2" @@
     run "git checkout -b v2 %s" rev @@
     run "opam admin upgrade-format" @@
     run "git add ." @@
-    run "git commit -a -m 'upgrade format to opam2'" @@
-    run "opam update -uy"
+    run "git commit -a -m 'upgrade format to opam2'"
+
+  let base ~ocaml_version ~distro =
+    from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev"
+
 end
 
+(*
 let dfile_v1 ?(pins=[]) ?(remotes=[]) ~ocaml_version ~distro ~opam_repo_git_rev
-  ~user ~repo ~branch ~commit () =
+  ~user ~repo ~branch ~commit ~packages () =
   let open V1 in
   let (@@) = Dockerfile.(@@) in
   base ~ocaml_version ~distro @@
   set_opam_repo_rev opam_repo_git_rev @@
   add_remotes remotes @@
-  add_pins pins @@
-  clone_src ~user ~repo ~branch ~commit ()
+  clone_src ~user ~repo ~branch ~commit ~packages ()
 
 let dfile ?(pins=[]) ?(remotes=[]) ~ocaml_version ~distro ~opam_repo_git_rev (target:Target.t) =
   let open Term.Infix in
@@ -77,9 +87,11 @@ let dfile ?(pins=[]) ?(remotes=[]) ~ocaml_version ~distro ~opam_repo_git_rev (ta
     | `Ref r -> Fmt.strf "%a" Ref.pp_name r
   in
   Term.target target >>= fun target ->
+  let packages = [] in
   let commit = Commit.hash (Target.head target) in
-  let dfile = dfile_v1 ~pins ~remotes ~ocaml_version ~distro ~opam_repo_git_rev ~user ~repo ~branch ~commit () in
+  let dfile = dfile_v1 ~pins ~remotes ~ocaml_version ~distro ~opam_repo_git_rev ~user ~repo ~branch ~commit ~packages () in
   Term.return dfile
+*)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

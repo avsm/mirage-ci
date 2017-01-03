@@ -36,7 +36,7 @@ module Builder = struct
     let pkg_revdeps =
       Term.without_logs ubuntu >>= fun img ->
       Opam_ops.packages_from_diff docker_t target >>= fun packages ->
-      Opam_ops.build_revdeps docker_t packages img in
+      Opam_ops.V1.run_revdeps docker_t packages img in
     let phase2 =
       Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in

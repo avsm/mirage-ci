@@ -85,6 +85,10 @@ module Opam_builder = struct
       (String.with_range ~len:6 remote_git_rev) remotes
 
   let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remote_git_rev;extra_remotes;typ} =
+    let (module OD : Opam_docker.V) =
+      match t.version with
+      | `V1 -> (module Opam_docker.V1)
+      | `V2 -> (module Opam_docker.V2) in
     let target_d =
       match typ,target with
       | _,None -> Dockerfile.empty
@@ -92,25 +96,20 @@ module Opam_builder = struct
          let commit = Commit.hash (head_of_target target) in
          let branch = branch_of_target target in
          let {Repo.user; repo} = project_of_target target in
-         let (@@) = Dockerfile.(@@) in
-         Opam_docker.V1.set_opam_repo_rev remote_git_rev @@
-         Opam_docker.V1.clone_src ~user ~repo ~branch ~commit () @@
-         Opam_docker.V1.add_pins packages
+         let (@@) = Dockerfile.(@@) in (* todo add Dockerfile.Infix *)
+         OD.set_opam_repo_rev remote_git_rev @@
+         OD.clone_src ~user ~repo ~branch ~commit ~packages
       | `Repo, Some target ->
          let commit = Commit.hash (head_of_target target) in
          let branch = branch_of_target target in
-         let open Dockerfile in
-         workdir "/home/opam/opam-repository" @@
-         run "git fetch origin %s:cibranch" branch @@
-         run "git checkout %s" commit
+         OD.set_opam_repo_rev ~branch commit
     in
     let dockerfile =
       let open! Dockerfile in
-      let remotes = Opam_docker.V1.add_remotes extra_remotes in
-      from ~tag:(distro^"_ocaml-"^ocaml_version) ("ocaml/opam" ^ (match t.version with |`V2 -> "-dev"|_ ->"")) @@
-      remotes @@
+      OD.base ~ocaml_version ~distro @@
+      OD.add_remotes extra_remotes @@
       target_d @@
-      run "opam update"
+      run "opam update -uy"
     in
     let open Utils.Infix in
     let open Datakit_path.Infix in

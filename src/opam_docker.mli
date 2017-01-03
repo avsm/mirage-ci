@@ -4,29 +4,22 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
+open Datakit_github
 open Datakit_ci.Term
 
-module V1 : sig
-  val add_remotes : (Datakit_github.Repo.t * Datakit_github.Commit.t) list -> Dockerfile.t
+module type V = sig
+  val add_remotes : (Repo.t * Commit.t) list -> Dockerfile.t
 
-  val add_pins : string list -> Dockerfile.t
-
-  val set_opam_repo_rev : string -> Dockerfile.t
+  val set_opam_repo_rev : ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
 
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
 
-  val clone_src :
-      user:string ->
-      repo:string -> branch:string -> commit:string -> unit -> Dockerfile.t
+  val clone_src : user:string -> repo:string -> branch:string -> commit:string ->
+      packages:string list -> Dockerfile.t
 end
 
-module V2 : sig
-
- val add_remotes :
-      (Datakit_github.Repo.t * Datakit_github.Commit.t) list -> Dockerfile.t
- val add_pins : string list -> Dockerfile.t
- val set_opam_repo_rev : string -> Dockerfile.t
-end
+module V1 : V
+module V2 : V
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

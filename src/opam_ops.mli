@@ -6,13 +6,6 @@
 
 open Datakit_ci.Term
 
-val build_package : Docker_ops.t -> Docker_build.image -> string -> Docker_build.image t
-
-val build_packages : Docker_ops.t -> Docker_build.image -> string list -> unit t
-
-val build_revdeps : Docker_ops.t -> string list -> Docker_build.image -> unit t
-
-val list_revdeps : Docker_ops.t -> Docker_build.image -> string -> string list t
 
 val packages_from_diff : Docker_ops.t -> Datakit_ci.Target.t -> string list t
 
@@ -26,19 +19,39 @@ val distro_build :
   typ:[ `Package | `Repo ] ->
   opam_t:Opam_build.t -> docker_t:Docker_ops.t -> unit -> Docker_build.image t
 
-module V1 : sig
-  open Datakit_github
-  val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
-  val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
-end
+val run_phases :
+  packages:string list Datakit_ci.Term.t ->
+  build:(target:Datakit_ci.Target.t ->
+    packages:string list ->
+    distro:string ->
+    ocaml_version:string ->
+    unit -> Docker_build.image Datakit_ci.Term.t) ->
+  build_revdeps:(Docker_ops.t ->
+    string list ->
+    Docker_build.image -> 'a Datakit_ci.Term.t) ->
+  Docker_ops.t ->
+  Datakit_ci.Target.t -> (string * string Datakit_ci.Term.t) list
 
-module V2 : sig
+module type V = sig
   open Datakit_github
   val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
   val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t * string
   val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
   val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
+  val list_revdeps : Docker_ops.t -> Docker_build.image -> string -> string list t
+  val run_revdeps: ?volume:Fpath.t -> Docker_ops.t -> string list -> Docker_build.image -> unit t
 end
+
+module V1 : V
+module V2 : V
+
+(* TODO dead code*
+val build_package : Docker_ops.t -> Docker_build.image -> string -> Docker_build.image t
+
+val build_packages : Docker_ops.t -> Docker_build.image -> string list -> unit t
+
+val build_revdeps : Docker_ops.t -> string list -> Docker_build.image -> unit t
+*)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
