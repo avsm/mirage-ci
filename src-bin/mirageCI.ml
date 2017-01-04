@@ -29,7 +29,7 @@ module Builder = struct
   let repo_builder ~opam_version ~typ ~remotes target =
     let packages = match typ with
       |`Package -> packages_of_repo target
-      |`Repo -> Opam_ops.packages_from_diff docker_t target in
+      |`Repo |`Full_repo -> Opam_ops.packages_from_diff docker_t target in
     let opam_repo = Opam_docker.mirage_opam_repository in
     Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 

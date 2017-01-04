@@ -25,25 +25,24 @@ module Builder = struct
     | "mirage","mirage-dev" -> ["mirage";"mirage-types";"mirage-types-lwt";"irmin"]
     | _ -> ["ocamlfind"]
 
-  let repo_builder ~remotes ~opam_version target =
+  let repo_builder ~typ ~opam_version target =
     let default = packages_of_repo (Target.repo target) in
     let packages = Opam_ops.packages_from_diff ~default docker_t target in
     let opam_repo = Opam_docker.ocaml_opam_repository in
-    let typ = `Repo in
-    Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
 
-  let run_phases remotes target =
+  let run_phases typ target =
     let tests =
-      (repo_builder ~remotes ~opam_version:`V1 target) @
-      (repo_builder ~remotes ~opam_version:`V2 target) in
+      (repo_builder ~typ ~opam_version:`V1 target) @
+      (repo_builder ~typ ~opam_version:`V2 target) in
     match Target.id target with
     |`PR _ | `Ref ["heads";"master"] -> tests
     |`Ref _  -> []
  
   let tests = [
-    Config.project ~id:"ocaml/opam-repository" (run_phases []);
-    Config.project ~id:"janestreet/opam-repository" (run_phases []);
-    Config.project ~id:"mirage/mirage-dev" (run_phases []);
+    Config.project ~id:"ocaml/opam-repository" (run_phases `Full_repo);
+    Config.project ~id:"janestreet/opam-repository" (run_phases `Repo);
+    Config.project ~id:"mirage/mirage-dev" (run_phases `Repo);
   ]
 end
 

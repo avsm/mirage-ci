@@ -15,7 +15,7 @@ val distro_build :
   distro:string ->
   ocaml_version:string ->
   remotes:(Datakit_github.Repo.t * string) list ->
-  typ:[ `Package | `Repo ] ->
+  typ:[ `Package | `Repo | `Full_repo ] ->
   opam_version:[ `V1 | `V2 ] ->
   opam_repo:Datakit_github.Repo.t * string ->
   Opam_build.t ->
@@ -24,7 +24,7 @@ val distro_build :
 val run_phases :
   packages:string list Datakit_ci.Term.t ->
   remotes:(Datakit_github.Repo.t * string) list ->
-  typ:[ `Package | `Repo ] ->
+  typ:[ `Package | `Repo | `Full_repo ] ->
   opam_version:[ `V1 | `V2 ] ->
   opam_repo:Datakit_github.Repo.t * string ->
   Opam_build.t ->

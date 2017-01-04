@@ -18,7 +18,7 @@ type key = {
   ocaml_version: string;
   remotes: Remote.t list;
   target: Target.v option;
-  typ: [`Package | `Repo ];
+  typ: [`Package | `Repo | `Full_repo ];
   opam_version: [`V1 | `V2];
 }
 
@@ -106,7 +106,7 @@ module Opam_builder = struct
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
               OD.clone_src ~user ~repo ~branch ~commit @@
               OD.add_local_pins packages
-          | `Repo when repo.Remote.full_remote ->
+          | `Full_repo ->
               OD.clone_src ~user ~repo ~branch ~commit @@
               OD.switch_local_remote
           | `Repo ->
@@ -124,7 +124,7 @@ module Opam_builder = struct
     let open Utils.Infix in
     let open Datakit_path.Infix in
     let output = Live_log.write log in
-    Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list string)) packages distro ocaml_version;
+    Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list ~sep:sp string)) packages distro ocaml_version;
     let data = Dockerfile_conv.to_cstruct dockerfile in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "Dockerfile.sexp") data >>*= fun () ->
     output (Dockerfile.string_of_t dockerfile ^ "\n");
