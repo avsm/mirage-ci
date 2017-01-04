@@ -35,6 +35,7 @@ let repo ~user ~repo ~branch =
 
 let ocaml_opam_repository = repo ~user:"ocaml" ~repo:"opam-repository" ~branch:"master"
 let mirage_opam_repository = repo ~user:"mirage" ~repo:"opam-repository" ~branch:"master"
+let js_opam_repository = repo ~user:"janestreet" ~repo:"opam-repository" ~branch:"master"
 
 module type V = sig
   val add_remotes : Remote.t list -> Dockerfile.t

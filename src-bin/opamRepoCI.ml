@@ -18,21 +18,32 @@ module Builder = struct
   let docker_t = DO.v ~logs ~label ~jobs:24 ()
   let opam_t = Opam_build.v ~logs ~label
 
-  let repo_builder ~opam_version target =
-    let packages = Opam_ops.packages_from_diff docker_t target in
+  let packages_of_repo {Repo.user;repo} =
+    match user, repo with
+    | "ocaml","opam-repository" -> ["lwt";"async";"coq";"mirage"]
+    | "janestreet","opam-repository" -> ["async";"async_ssl";"jenga"]
+    | "mirage","mirage-dev" -> ["mirage";"mirage-types";"mirage-types-lwt";"irmin"]
+    | _ -> ["ocamlfind"]
+
+  let repo_builder ~remotes ~opam_version target =
+    let default = packages_of_repo (Target.repo target) in
+    let packages = Opam_ops.packages_from_diff ~default docker_t target in
     let opam_repo = Opam_docker.ocaml_opam_repository in
     let typ = `Repo in
-    Opam_ops.run_phases ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
-  let run_phases target =
+  let run_phases remotes target =
     let tests =
-      (repo_builder ~opam_version:`V1 target) @
-      (repo_builder ~opam_version:`V2 target) in
+      (repo_builder ~remotes ~opam_version:`V1 target) @
+      (repo_builder ~remotes ~opam_version:`V2 target) in
     match Target.id target with
-    |`PR _  -> tests
-    | _ -> []
+    |`PR _ | `Ref ["master"] -> tests
+    |`Ref _  -> []
  
-  let tests = [ Config.project ~id:"ocaml/opam-repository" run_phases ]
+  let tests = [
+    Config.project ~id:"ocaml/opam-repository" (run_phases []);
+    Config.project ~id:"janestreet/opam-repository" (run_phases [Opam_docker.ocaml_opam_repository]);
+  ]
 end
 
 (* Command-line parsing *)

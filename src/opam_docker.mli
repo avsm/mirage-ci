@@ -20,6 +20,7 @@ end
 val repo : user:string -> repo:string -> branch:string -> Repo.t * string
 val ocaml_opam_repository : Repo.t * string
 val mirage_opam_repository : Repo.t * string
+val js_opam_repository : Repo.t * string
 
 module type V = sig
   val add_remotes : Remote.t list -> Dockerfile.t
