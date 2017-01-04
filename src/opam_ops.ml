@@ -154,12 +154,15 @@ let build_package {build_t;_} image pkg =
   Docker_build.run build_t ~hum dfile
 
 let build_packages t image pkgs =
-  List.map (fun pkg ->
+  let builds = List.map (fun pkg ->
     let t = build_package t image pkg in
     pkg, t
-  ) pkgs |>
-  Term.wait_for_all |>
-  Term_utils.ignore_failure ~on_fail:(fun _ -> ())
+  ) pkgs in
+  Term.wait_for_all builds >>= fun () ->
+  let rec gather acc = function
+    | [] -> Term.return (List.rev acc)
+    | (l,hd)::tl -> hd >>= fun hd -> gather ((l,hd)::acc) tl in
+  gather [] builds
 
 let packages_from_diff ?(default=["ocamlfind"]) {pull_t;run_t;_} target =
   let opam_slug = Fmt.strf "%a" Repo.pp (Target.repo target) in
@@ -190,12 +193,11 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   let remotes = opam_repo_remote :: remotes in
   Term.target target >>= fun target ->
   Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
-  let pkg_target = String.concat ~sep:" " packages in
-  let hum = Fmt.strf "base image for opam install %s" pkg_target in
+  let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~hum df >>= fun img ->
   match packages with
-  | [] -> Term.return img
-  | _ -> build_package docker_t img pkg_target
+  | [] -> Term.return ["base",img]
+  | _ -> build_packages docker_t img packages
 
 let primary_ocaml_version = "4.03.0"
 let compiler_variants = ["4.02.3";"4.04.0";"4.04.0_flambda"]
@@ -210,20 +212,25 @@ let run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
   let phase1 = ubuntu >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
   let pkg_revdeps =
-    Term.without_logs ubuntu >>= fun (img:Docker_build.image) ->
-    packages >>= fun packages ->
-    run_revdeps ~opam_version docker_t packages img in
-    let phase2 =
+    ubuntu >>= fun ubuntu ->
+    let ts = List.map (fun (l,img) ->
+      let t = 
+        packages >>= fun packages ->
+        run_revdeps ~opam_version docker_t packages img in
+      (Fmt.strf "revdep:%s" l), t
+    ) ubuntu in
+    Term.wait_for_all ts in
+  let phase2 =
       Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in
     (* phase 3 compiler variants *)
-    let compiler_versions =
+  let compiler_versions =
       List.map (fun oc ->
         let t = build "alpine-3.5" oc in
         ("OCaml "^oc), t
       ) compiler_variants in
     let phase3 =
-      Term_utils.after phase2 >>= fun () ->
+      Term_utils.after phase1 >>= fun () ->
       Term.wait_for_all compiler_versions in
     (* phase 4 *)
     let debian = build "debian-stable" primary_ocaml_version in

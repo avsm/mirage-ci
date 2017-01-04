@@ -19,7 +19,7 @@ val distro_build :
   opam_version:[ `V1 | `V2 ] ->
   opam_repo:Datakit_github.Repo.t * string ->
   Opam_build.t ->
-  Docker_ops.t -> Docker_build.image Datakit_ci.Term.t
+  Docker_ops.t -> (string * Docker_build.image) list Datakit_ci.Term.t
 
 val run_phases :
   packages:string list Datakit_ci.Term.t ->
