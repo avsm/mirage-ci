@@ -202,6 +202,11 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
 let primary_ocaml_version = "4.03.0"
 let compiler_variants = ["4.02.3";"4.04.0";"4.04.0_flambda"]
 
+let rec max_list acc sz = function
+  | hd::tl when List.length acc > sz -> List.rev acc
+  | hd::tl -> max_list (hd::acc) sz tl
+  | [] -> List.rev acc
+
 let run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
     packages >>= fun packages ->
@@ -218,7 +223,7 @@ let run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
         packages >>= fun packages ->
         run_revdeps ~opam_version docker_t packages img in
       (Fmt.strf "revdep:%s" l), t
-    ) ubuntu in
+    ) (max_list [] 4 ubuntu) in
     Term.wait_for_all ts in
   let phase2 =
       Term_utils.after phase1 >>= fun () ->
