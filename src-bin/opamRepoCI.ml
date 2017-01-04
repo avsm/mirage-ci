@@ -37,7 +37,7 @@ module Builder = struct
       (repo_builder ~remotes ~opam_version:`V1 target) @
       (repo_builder ~remotes ~opam_version:`V2 target) in
     match Target.id target with
-    |`PR _ | `Ref ["master"] -> tests
+    |`PR _ | `Ref ["heads";"master"] -> tests
     |`Ref _  -> []
  
   let tests = [
