@@ -116,6 +116,7 @@ module Opam_builder = struct
     in
     let dockerfile =
       let open! Dockerfile in
+      OD.add_ci_script @@
       OD.base ~ocaml_version ~distro @@
       OD.add_remotes remotes @@
       target_d @@

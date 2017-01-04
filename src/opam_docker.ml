@@ -45,6 +45,7 @@ module type V = sig
   val add_local_pins : string list -> Dockerfile.t
   val switch_local_remote : Dockerfile.t
   val add_local_remote : Dockerfile.t
+  val add_ci_script : Dockerfile.t
 end
 
 (* If remote is not ocaml/opam-repository, we need to fetch its refs *)
@@ -91,6 +92,10 @@ module V1 = struct
 
   let add_local_remote =
     run "opam remote add local /home/opam/src"
+
+  let add_ci_script =
+    run "echo '#!/bin/sh\n\nif ! opam install $1 --dry-run; then\n echo Package unavailable, skipping.\n  exit 0\n fi\n\n echo opam depext -ivyj 2 $1\n opam depext -ivyj 2 $1 || exit 1' > /home/opam/opam-ci-install && chmod a+x /home/opam/opam-ci-install && sudo mv /home/ opam/opam-ci-install /usr/bin/opam-ci-install"
+
 end
 
 module V2 = struct
@@ -99,6 +104,7 @@ module V2 = struct
   let add_remotes = V1.add_remotes
   let clone_src = V1.clone_src
   let add_local_pins = V1.add_local_pins
+  let add_ci_script = V1.add_ci_script
 
   let switch_local_remote =
     run "opam admin upgrade-format" @@
@@ -121,7 +127,6 @@ module V2 = struct
 
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev"
-
 end
 
 (*

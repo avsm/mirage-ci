@@ -51,7 +51,7 @@ module V1 = struct
     String.cuts ~empty:false ~sep:"\n"
 
   let run_package ?volume t image pkg =
-    let cmd = ["opam";"depext";"-ivyj";"2";pkg] in
+    let cmd = ["opam-ci-install";pkg] in
     let volumes =
       match volume with
       | None -> []
@@ -101,7 +101,7 @@ module V2 = struct
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
 
   let run_package ?volume t image pkg =
-    let cmd = ["opam";"depext";"-ivyj";"2";pkg] in
+    let cmd = ["opam-ci-install";pkg] in
     let volumes =
       match volume with
       | None -> []
@@ -148,8 +148,7 @@ let build_package {build_t;_} image pkg =
   let open !Dockerfile in
   let dfile =
     from image.Docker_build.sha256 @@
-    run "opam depext -y %s" pkg @@
-    run "opam install -j 2 -yv %s" pkg in
+    run "opam-ci-install %s" pkg in
   let hum = Fmt.strf "opam install %s" pkg in
   Docker_build.run build_t ~hum dfile
 

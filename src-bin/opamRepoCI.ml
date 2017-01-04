@@ -36,8 +36,9 @@ module Builder = struct
       (repo_builder ~typ ~opam_version:`V1 target) @
       (repo_builder ~typ ~opam_version:`V2 target) in
     match Target.id target with
-    |`PR _ | `Ref ["heads";"master"] -> tests
+    |`Ref ["heads";"master"] -> tests
     |`Ref _  -> []
+    |`PR _ -> tests
  
   let tests = [
     Config.project ~id:"ocaml/opam-repository" (run_phases `Full_repo);
