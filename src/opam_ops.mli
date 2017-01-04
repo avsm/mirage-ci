@@ -7,7 +7,7 @@
 open Datakit_ci.Term
 
 
-val packages_from_diff : Docker_ops.t -> Datakit_ci.Target.t -> string list t
+val packages_from_diff : ?default:string list -> Docker_ops.t -> Datakit_ci.Target.t -> string list t
 
 val distro_build :
   packages:string list ->
@@ -46,14 +46,6 @@ end
 
 module V1 : V
 module V2 : V
-
-(* TODO dead code*
-val build_package : Docker_ops.t -> Docker_build.image -> string -> Docker_build.image t
-
-val build_packages : Docker_ops.t -> Docker_build.image -> string list -> unit t
-
-val build_revdeps : Docker_ops.t -> string list -> Docker_build.image -> unit t
-*)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

@@ -144,29 +144,6 @@ module V2 = struct
 
 end
 
-(*
-let dfile_v1 ?(pins=[]) ?(remotes=[]) ~ocaml_version ~distro ~opam_repo_git_rev
-  ~user ~repo ~branch ~commit () =
-  let (@@) = Dockerfile.(@@) in
-  OD.V1.base ~ocaml_version ~distro @@
-  OD.V1.set_opam_repo_rev opam_repo_git_rev @@
-  OD.V1.add_remotes remotes @@
-  OD.V1.add_pins pins @@
-  OD.V1.clone_src ~user ~repo ~branch ~commit ()
-
-let dfile_package ?(pins=[]) ?(remotes=[]) ~target ~ocaml_version ~distro ~opam_repo_git_rev =
-  let {Repo.user; repo} = Target.repo target in
-  let branch =
-    match Target.id target with
-    | `PR pr -> Printf.sprintf "pull/%d/head" pr
-    | `Ref r -> Fmt.strf "%a" Ref.pp_name r
-  in
-  Term.target target >>= fun target ->
-  let commit = Commit.hash (Target.head target) in
-  let dfile = dfile_v1 ~pins ~remotes ~ocaml_version ~distro ~opam_repo_git_rev ~user ~repo ~branch ~commit () in
-  Term.return dfile
-*)
-
 let build_package {build_t;_} image pkg =
   let open !Dockerfile in
   let dfile =
@@ -184,10 +161,10 @@ let build_packages t image pkgs =
   Term.wait_for_all |>
   Term_utils.ignore_failure ~on_fail:(fun _ -> ())
 
-let packages_from_diff {pull_t;run_t;_} target =
+let packages_from_diff ?(default=["ocamlfind"]) {pull_t;run_t;_} target =
   let opam_slug = Fmt.strf "%a" Repo.pp (Target.repo target) in
   match Target.id target with
-  |`Ref _ -> Term.fail "Skipping, can only build PRs"
+  |`Ref _ -> Term.return default
   |`PR pr_num ->
 (*    let time = Ptime_clock.now () in
     Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time pull_t >>= fun img -> *)
@@ -216,7 +193,9 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   let pkg_target = String.concat ~sep:" " packages in
   let hum = Fmt.strf "base image for opam install %s" pkg_target in
   Docker_build.run docker_t.Docker_ops.build_t ~hum df >>= fun img ->
-  build_package docker_t img pkg_target
+  match packages with
+  | [] -> Term.return img
+  | _ -> build_package docker_t img pkg_target
 
 let primary_ocaml_version = "4.04.0"
 let compiler_variants = ["4.02.3";"4.03.0";"4.04.0_flambda"]
