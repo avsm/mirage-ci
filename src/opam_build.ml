@@ -75,7 +75,7 @@ module Opam_builder = struct
           (String.with_range ~len:8 (Commit.hash commit))
        ) remotes)
       in
-    Fmt.strf "Dockerfile %a %s/ocaml-%s/%s)" Fmt.(list string) packages distro ocaml_version sremotes
+    Fmt.strf "Dockerfile %a %s/ocaml-%s/%s)" Fmt.(list ~sep:sp string) packages distro ocaml_version sremotes
 
   let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remotes;typ;opam_version} =
     let (module OD:Opam_docker.V) =
