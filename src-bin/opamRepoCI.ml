@@ -20,8 +20,8 @@ module Builder = struct
 
   let packages_of_repo {Repo.user;repo} =
     match user, repo with
-    | "ocaml","opam-repository" -> ["lwt";"async";"coq";"mirage"]
-    | "janestreet","opam-repository" -> ["async";"async_ssl";"jenga"]
+    | "ocaml","opam-repository" -> ["lwt";"async";"coq";"mirage";"datakit"]
+    | "janestreet","opam-repository" -> ["async";"async_ssl";"jenga";"jane-street-tests"]
     | "mirage","mirage-dev" -> ["mirage";"mirage-types";"mirage-types-lwt";"irmin"]
     | _ -> ["ocamlfind"]
 
