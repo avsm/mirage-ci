@@ -42,8 +42,8 @@ module Builder = struct
  
   let tests = [
     Config.project ~id:"ocaml/opam-repository" (run_phases []);
-    Config.project ~id:"janestreet/opam-repository" (run_phases [Opam_docker.ocaml_opam_repository]);
-    Config.project ~id:"mirage/mirage-dev" (run_phases [Opam_docker.ocaml_opam_repository]);
+    Config.project ~id:"janestreet/opam-repository" (run_phases []);
+    Config.project ~id:"mirage/mirage-dev" (run_phases []);
   ]
 end
 
