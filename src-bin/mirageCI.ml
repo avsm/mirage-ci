@@ -24,6 +24,7 @@ module Builder = struct
     match Fmt.strf "%a" Repo.pp repo with
     | "mirage/ocaml-cohttp" -> Term.return ["cohttp"]
     | "mirage/mirage" -> Term.return ["mirage";"mirage-types";"mirage-types-lwt"]
+    | "mirage/ocaml-git" -> Term.return ["git";"git-http";"git-unix";"git-mirage"]
     | _ -> Term.fail "Unknown repository for packages_of_repo"
 
   let repo_builder ~opam_version ~typ ~remotes target =
@@ -34,14 +35,24 @@ module Builder = struct
     Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
   let run_phases typ remotes target =
-    let all_tests = repo_builder ~opam_version:`V2 ~typ ~remotes target in
+    let all_tests = repo_builder ~opam_version:`V1 ~typ ~remotes target in
     match Target.id target with
     |`Ref ["heads";"master"] -> all_tests
     |`PR _  -> all_tests
     | _ -> []
 
+  let run_git_phases target =
+    let all_tests = repo_builder ~opam_version:`V1 ~typ:`Package target in
+    match Target.id target with
+    |`Ref ["heads";"mirage-dev"] -> all_tests ~remotes:mirage_dev
+    |`Ref ["heads";"master"] -> all_tests ~remotes:[]
+    |`Ref _ -> []
+    |`PR _  -> all_tests ~remotes:mirage_dev
+
+
   let tests = [
     Config.project ~id:"mirage/mirage" (run_phases `Package mirage_dev);
+    Config.project ~id:"mirage/ocaml-git" run_git_phases;
   ]
 end
 
