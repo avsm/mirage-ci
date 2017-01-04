@@ -42,7 +42,6 @@ module Builder = struct
 
   let tests = [
     Config.project ~id:"mirage/mirage" (run_phases `Package mirage_dev);
-    Config.project ~id:"mirage/mirage-dev" (run_phases `Repo [])
   ]
 end
 
