@@ -110,6 +110,7 @@ module Opam_builder = struct
               OD.clone_src ~user ~repo ~branch ~commit @@
               OD.switch_local_remote
           | `Repo ->
+              OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
               OD.clone_src ~user ~repo ~branch ~commit @@
               OD.add_local_remote
     in
