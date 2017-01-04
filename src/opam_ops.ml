@@ -197,8 +197,8 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   | [] -> Term.return img
   | _ -> build_package docker_t img pkg_target
 
-let primary_ocaml_version = "4.04.0"
-let compiler_variants = ["4.02.3";"4.03.0";"4.04.0_flambda"]
+let primary_ocaml_version = "4.03.0"
+let compiler_variants = ["4.02.3";"4.04.0";"4.04.0_flambda"]
 
 let run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
