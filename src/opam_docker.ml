@@ -102,9 +102,10 @@ module V1 = struct
       "  exit 0";
       "fi";
       "echo opam depext -ivyj 2 $1";
-      "opam depext -ivyj 2 \\$1 || exit 1" ] in
+      "opam depext -ivyj 2 \\$1 || exit 1";
+      "" ] in
     let cmd = String.concat ~sep:"\\n" lines in
-    run "echo \"%s\" > /home/opam/opam-ci-install && chmod a+x /home/opam/opam-ci-install && sudo mv /home/opam/opam-ci-install /usr/bin/opam-ci-install" cmd
+    run "printf '%s' > /home/opam/opam-ci-install && chmod a+x /home/opam/opam-ci-install && sudo mv /home/opam/opam-ci-install /usr/bin/opam-ci-install" cmd
 end
 
 module V2 = struct
