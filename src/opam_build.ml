@@ -130,7 +130,7 @@ module Opam_builder = struct
     output (Dockerfile.string_of_t dockerfile ^ "\n");
     Lwt.return  (Ok dockerfile)
 
-  let branch t {target;packages;distro;ocaml_version;remotes;opam_version} =
+  let branch t {target;packages;distro;ocaml_version;remotes;opam_version;typ} =
     (* TODO upstream *)
     let target_v_pp ppf t =
       match t with
@@ -141,7 +141,8 @@ module Opam_builder = struct
     let remotes = Fmt.(strf "%a" (list Remote.pp) remotes) in
     let packages = String.concat ~sep:" " packages in
     let opam_version = match opam_version with `V1 -> "v1" | `V2 -> "v2" in
-    Fmt.strf "%s%s%s%s%s%s" target packages distro ocaml_version remotes opam_version |>
+    let typ = match typ with `Package -> "package" |`Repo -> "repo" |`Full_repo -> "fullrepo" in
+    Fmt.strf "%s%s%s%s%s%s%s" target packages distro ocaml_version remotes opam_version typ |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =
