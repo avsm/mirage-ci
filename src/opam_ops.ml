@@ -206,7 +206,7 @@ let rec max_list acc sz = function
   | hd::tl -> max_list (hd::acc) sz tl
   | [] -> List.rev acc
 
-let run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
+let run_phases ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
     packages >>= fun packages ->
     distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
@@ -261,11 +261,11 @@ let run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
     in
     let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
     [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;
-        Term_utils.report ~order:2 ~label:(lf "Revdeps") phase2;
         Term_utils.report ~order:3 ~label:(lf "Compilers") phase3;
         Term_utils.report ~order:4 ~label:(lf "Common Distros") phase4;
         Term_utils.report ~order:5 ~label:(lf "All Distros") phase5;
-    ]
+    ] @ (match revdeps with false -> [] | true ->
+        [Term_utils.report ~order:2 ~label:(lf "Revdeps") phase2])
  
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

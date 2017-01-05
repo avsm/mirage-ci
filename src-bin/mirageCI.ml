@@ -27,22 +27,22 @@ module Builder = struct
     | "mirage/ocaml-git" -> Term.return ["git";"git-http";"git-unix";"git-mirage"]
     | _ -> Term.fail "Unknown repository for packages_of_repo"
 
-  let repo_builder ~opam_version ~typ ~remotes target =
+  let repo_builder ~revdeps ~opam_version ~typ ~remotes target =
     let packages = match typ with
       |`Package -> packages_of_repo target
       |`Repo |`Full_repo -> Opam_ops.packages_from_diff docker_t target in
     let opam_repo = Opam_docker.mirage_opam_repository in
-    Opam_ops.run_phases ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
   let run_phases typ remotes target =
     let all_tests = repo_builder ~opam_version:`V1 ~typ ~remotes target in
     match Target.id target with
-    |`Ref ["heads";"master"] -> all_tests
-    |`PR _  -> all_tests
+    |`Ref ["heads";"master"] -> all_tests ~revdeps:false
+    |`PR _  -> all_tests ~revdeps:true
     | _ -> []
 
   let run_git_phases target =
-    let all_tests = repo_builder ~opam_version:`V1 ~typ:`Package target in
+    let all_tests = repo_builder ~revdeps:true ~opam_version:`V1 ~typ:`Package target in
     match Target.id target with
     |`Ref ["heads";"mirage-dev"] -> all_tests ~remotes:mirage_dev
     |`Ref ["heads";"master"] -> all_tests ~remotes:[]
