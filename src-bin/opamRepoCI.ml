@@ -22,7 +22,7 @@ module Builder = struct
     match user, repo with
     | "ocaml","opam-repository" -> ["lwt";"async";"coq";"mirage";"datakit"]
     | "janestreet","opam-repository" -> ["async";"async_ssl";"jenga";"jane-street-tests"]
-    | "mirage","mirage-dev" -> ["mirage";"mirage-types";"mirage-types-lwt";"irmin"]
+    | "mirage","mirage-dev" -> ["mirage.dev~mirage";"mirage-types";"mirage-types-lwt";"irmin"]
     | _ -> ["ocamlfind"]
 
   let repo_builder ~revdeps ~typ ~opam_version target =
