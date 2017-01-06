@@ -26,12 +26,14 @@ val v : ?network:string -> logs:Live_log.manager -> label:string -> pool:Monitor
     a build can run for before being terminated. [network] defines the Docker
     network that the build process will run under (requires Docker 1.13+). *)
 
-val run : t -> ?tag:string -> hum:string -> Dockerfile.t -> image Term.t
-(** [run t ?tag ~hum d] will build the [d] Dockerfile using the [t]
+val run : t -> ?pull:bool -> ?tag:string -> hum:string -> Dockerfile.t -> image Term.t
+(** [run t ?pull ?tag ~hum d] will build the [d] Dockerfile using the [t]
     builder, and return the SHA256 build hash of the resulting image.
     The image will also optionally be tagged with [tag] if specified.
     [hum] is a human-readable description of the Dockerfile for showing
-    in the UI or status logs. *)
+    in the UI or status logs. If [pull] is true (the default is [false])
+    then [--pull] will be added to the build command--this will only work
+    for tag names and not for SHA256 addressing. *)
 
 val digest_of_dockerfile : Dockerfile.t -> string
 (** [digest_of_dockerfile d] will calculate a hex digest of the input Dockerfile. *)

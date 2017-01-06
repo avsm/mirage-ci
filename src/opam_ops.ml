@@ -35,7 +35,7 @@ module V1 = struct
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
     in
-    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
+    Docker_build.run docker_build_t ~pull:true ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
 
@@ -96,7 +96,7 @@ module V2 = struct
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
     in
-    Docker_build.run docker_build_t ~hum dfile >>= fun img ->
+    Docker_build.run docker_build_t ~pull:true ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/cache && opam admin make"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
 
@@ -192,7 +192,7 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   Term.target target >>= fun target ->
   Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
-  Docker_build.run docker_t.Docker_ops.build_t ~hum df >>= fun img ->
+  Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df >>= fun img ->
   match packages with
   | [] -> Term.return ["base",img]
   | _ -> build_packages docker_t img packages

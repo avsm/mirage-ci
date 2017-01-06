@@ -21,6 +21,7 @@ type key = {
   dockerfile: Dockerfile.t;
   hum: string;
   tag: string option;
+  pull: bool;
 }
 
 module Dockerfile_key = struct
@@ -67,19 +68,20 @@ module Docker_builder = struct
       Utils.with_timeout ~switch t.timeout fn
     )
 
-  let generate t ~switch ~log trans job_id {dockerfile;hum;tag} =
+  let generate t ~switch ~log trans job_id {dockerfile;hum;tag;pull} =
     let digest = digest_of_dockerfile dockerfile in
     let output = Live_log.write log in
     let builton = string_of_float (Unix.gettimeofday ()) in
     let label = Printf.sprintf "--label com.docker.datakit.digest=%s --label com.docker.datakit.builton=%s" digest builton in
     let network_cli = match t.network with None -> "" | Some n -> " --network " ^ n in
     let tag_cli = match tag with None -> "" | Some t -> " -t " ^ t in
+    let pull_cli = match pull with false -> "" | true -> " --pull" in
     let images_output = Buffer.create 1024 in
     Utils.with_tmpdir (fun tmp_dir ->
       Dockerfile_distro.generate_dockerfile ~crunch:true tmp_dir dockerfile;
       Monitored_pool.use ~log ~label:"docker build" t.pool job_id (fun () ->
         Utils.with_timeout ~switch t.timeout (fun switch ->
-          let cmd = Printf.sprintf "docker build%s %s%s --pull --rm --force-rm - < %s/Dockerfile" network_cli label tag_cli tmp_dir in
+          let cmd = Printf.sprintf "docker build%s %s%s%s --rm --force-rm - < %s/Dockerfile" network_cli label tag_cli pull_cli tmp_dir in
           Process.run ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun () ->
           let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
           Process.run ~switch ~output:(Buffer.add_string images_output) ("",[|"sh";"-c";cmd|]))
@@ -114,10 +116,10 @@ type t = Docker_build_cache.t
 let v ?network ~logs ~label ~pool ~timeout () =
   Docker_build_cache.create ~logs { Docker_builder.label; pool; timeout; network }
 
-let run config ?tag ~hum dockerfile =
+let run config ?(pull=false) ?tag ~hum dockerfile =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  Docker_build_cache.find config job_id {dockerfile; hum; tag}
+  Docker_build_cache.find config job_id {dockerfile; hum; tag; pull}
 
 
 (*---------------------------------------------------------------------------
