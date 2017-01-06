@@ -2,6 +2,4 @@ Docker_build
 Docker_run
 Dockerfile_conv
 Open_build
-Pool
-Worker
 Datakit_toml
