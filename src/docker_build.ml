@@ -79,7 +79,7 @@ module Docker_builder = struct
       Dockerfile_distro.generate_dockerfile ~crunch:true tmp_dir dockerfile;
       Monitored_pool.use ~log ~label:"docker build" t.pool job_id (fun () ->
         Utils.with_timeout ~switch t.timeout (fun switch ->
-          let cmd = Printf.sprintf "docker build%s %s%s --no-cache --rm --force-rm - < %s/Dockerfile" network_cli label tag_cli tmp_dir in
+          let cmd = Printf.sprintf "docker build%s %s%s --pull --rm --force-rm - < %s/Dockerfile" network_cli label tag_cli tmp_dir in
           Process.run ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun () ->
           let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
           Process.run ~switch ~output:(Buffer.add_string images_output) ("",[|"sh";"-c";cmd|]))
