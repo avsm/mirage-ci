@@ -200,28 +200,23 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
 let primary_ocaml_version = "4.03.0"
 let compiler_variants = ["4.02.3";"4.04.0";"4.04.0_flambda"]
 
-let rec max_list acc sz = function
-  | hd::tl when List.length acc > sz -> List.rev acc
-  | hd::tl -> max_list (hd::acc) sz tl
-  | [] -> List.rev acc
-
 let run_phases ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
     packages >>= fun packages ->
     distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
   in
   (* phase 1 *)
-  let ubuntu = build "ubuntu-16.04" primary_ocaml_version in
-  let phase1 = ubuntu >>= fun _ -> Term.return () in
+  let debian_stable = build "debian-stable" primary_ocaml_version in
+  let phase1 = debian_stable >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
   let pkg_revdeps =
-    ubuntu >>= fun ubuntu ->
+    debian_stable >>= fun debian_stable ->
     let ts = List.map (fun (l,img) ->
       let t = 
         packages >>= fun packages ->
         run_revdeps ~opam_version docker_t packages img in
       (Fmt.strf "revdep:%s" l), t
-    ) (max_list [] 4 ubuntu) in
+    ) debian_stable in
     Term.wait_for_all ts in
   let phase2 =
       Term_utils.after phase1 >>= fun () ->
@@ -236,26 +231,26 @@ let run_phases ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t 
       Term_utils.after phase1 >>= fun () ->
       Term.wait_for_all compiler_versions in
     (* phase 4 *)
-    let debian = build "debian-stable" primary_ocaml_version in
     let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
+    let ubuntu1610 = build "ubuntu-16.10" primary_ocaml_version in
     let centos7 = build "centos-7" primary_ocaml_version in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       Term.wait_for_all [
-        "Debian Stable", debian;
+        "Ubuntu 16.10", ubuntu1610;
         "Ubuntu 16.04", ubuntu1604;
         "CentOS7", centos7 ] in
     (* phase 5 *)
     let debiant = build "debian-testing" primary_ocaml_version in
     let debianu = build "debian-unstable" primary_ocaml_version in
-    let opensuse = build "opensuse-42.1" primary_ocaml_version in
+    let opensuse = build "opensuse-42.2" primary_ocaml_version in
     let fedora24 = build "fedora-24" primary_ocaml_version in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->
       Term.wait_for_all [
         "Debian Testing", debiant;
         "Debian Unstable", debianu;
-        "OpenSUSE 42.1", opensuse;
+        "OpenSUSE 42.2", opensuse;
         "Fedora 24", fedora24 ]
     in
     let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
