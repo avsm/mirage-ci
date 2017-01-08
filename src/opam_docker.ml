@@ -141,31 +141,6 @@ module V2 = struct
     from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev"
 end
 
-(*
-let dfile_v1 ?(pins=[]) ?(remotes=[]) ~ocaml_version ~distro ~opam_repo_git_rev
-  ~user ~repo ~branch ~commit ~packages () =
-  let open V1 in
-  let (@@) = Dockerfile.(@@) in
-  base ~ocaml_version ~distro @@
-  set_opam_repo_rev opam_repo_git_rev @@
-  add_remotes remotes @@
-  clone_src ~user ~repo ~branch ~commit ~packages ()
-
-let dfile ?(pins=[]) ?(remotes=[]) ~ocaml_version ~distro ~opam_repo_git_rev (target:Target.t) =
-  let open Term.Infix in
-  let {Repo.user; repo} = Target.repo target in
-  let branch =
-    match Target.id target with
-    | `PR pr -> Printf.sprintf "pull/%d/head" pr
-    | `Ref r -> Fmt.strf "%a" Ref.pp_name r
-  in
-  Term.target target >>= fun target ->
-  let packages = [] in
-  let commit = Commit.hash (Target.head target) in
-  let dfile = dfile_v1 ~pins ~remotes ~ocaml_version ~distro ~opam_repo_git_rev ~user ~repo ~branch ~commit ~packages () in
-  Term.return dfile
-*)
-
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 
