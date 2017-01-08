@@ -1,12 +1,12 @@
 version: '2.1'
-networks:
-  opam_build:
+volumes:
+  session_data:
 services:
   ci:
     restart: always
     build: .
     entrypoint: /home/opam/.opam/4.03.0/bin/${CI_BINARY}
-    command: --metadata-store tcp:datakit:5640 --web-ui=https://${CI_DOMAIN_NAME}/
+    command: --metadata-store tcp:datakit:5640 --web-ui=https://${CI_DOMAIN_NAME}/ --sessions-backend=redis://redis
     ports:
      - "443:8443"
     volumes:
@@ -15,6 +15,7 @@ services:
      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
      - datakit
+     - redis
   datakit:
     restart: always
     image: docker/datakit
@@ -33,8 +34,9 @@ services:
       - ./data/bridge/_github:/root/.github
     depends_on:
      - datakit
-  opamarchive:
+  redis:
     restart: always
-    image: ocaml/opam-archive
-    networks:
-     - opam_build 
+    image: redis
+    command: redis-server --save 60 1
+    volumes:
+      - session_data:/data
