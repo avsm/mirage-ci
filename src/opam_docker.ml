@@ -101,6 +101,8 @@ module V1 = struct
       "  echo Package unavailable, skipping.";
       "  exit 0";
       "fi";
+      "opam remote";
+      "opam list";
       "echo opam depext -uivyj 2 $1";
       "opam depext -uivyj 2 $1 || exit 1";
       "" ] in
