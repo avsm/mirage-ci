@@ -162,15 +162,15 @@ let build_packages t image pkgs =
     | (l,hd)::tl -> hd >>= fun hd -> gather ((l,hd)::acc) tl in
   gather [] builds
 
-let packages_from_diff ?(default=["ocamlfind"]) {pull_t;run_t;_} target =
+let packages_from_diff ?(default=["ocamlfind"]) {build_t;run_t;_} target =
   let opam_slug = Fmt.strf "%a" Repo.pp (Target.repo target) in
   match Target.id target with
   |`Ref _ -> Term.return default
   |`PR pr_num ->
-(*    let time = Ptime_clock.now () in
-    Docker_pull.run ~slug:"unikernel/mirage-ci" ~tag:"opam-diff" ~time pull_t >>= fun img -> *)
+    let dfile = Dockerfile.(from ~tag:"opam-diff" "unikernel/mirage-ci") in
+    Docker_build.run build_t ~pull:true ~hum:"opam-diff image" dfile >>= fun img ->
     let cmd = [opam_slug; string_of_int pr_num] in
-    Docker_run.run ~tag:"unikernel/mirage-ci:opam-diff" ~cmd run_t >|=
+    Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
 let run_revdeps ?volume ~opam_version docker_t packages img =
