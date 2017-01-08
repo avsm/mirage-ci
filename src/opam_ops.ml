@@ -224,19 +224,21 @@ let run_phases ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t 
     (* phase 3 compiler variants *)
   let compiler_versions =
       List.map (fun oc ->
-        let t = build "alpine-3.5" oc in
+        let t = build "debian-stable" oc in
         ("OCaml "^oc), t
       ) compiler_variants in
     let phase3 =
       Term_utils.after phase1 >>= fun () ->
       Term.wait_for_all compiler_versions in
     (* phase 4 *)
+    let alpine35 = build "alpine-3.5" primary_ocaml_version in
     let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
     let ubuntu1610 = build "ubuntu-16.10" primary_ocaml_version in
     let centos7 = build "centos-7" primary_ocaml_version in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       Term.wait_for_all [
+        "Alpine 3.5", alpine35;
         "Ubuntu 16.10", ubuntu1610;
         "Ubuntu 16.04", ubuntu1604;
         "CentOS7", centos7 ] in
