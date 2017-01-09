@@ -56,6 +56,12 @@ let set_origin =
      run "git remote set-url origin git://github.com/%s/%s" repo.Repo.user repo.Repo.repo
   | _ -> empty
 
+let generate_sh targ lines =
+  let open Dockerfile in
+  "#!/bin/sh" :: "" :: lines |>
+  String.concat ~sep:"\\n" |> fun lines ->
+  run "printf '%s' > %s && chmod a+x %s && sudo mv %s /usr/bin/%s" lines targ targ targ targ
+
 module V1 = struct
   open !Dockerfile
 
@@ -94,9 +100,7 @@ module V1 = struct
     run "opam remote add local /home/opam/src"
 
   let add_ci_script =
-    let lines = [
-      "#!/bin/sh";
-      "";
+    generate_sh "opam-ci-install" [
       "if ! opam install $1 --dry-run; then";
       "  echo Package unavailable, skipping.";
       "  exit 0";
@@ -104,10 +108,7 @@ module V1 = struct
       "opam remote";
       "opam list";
       "echo opam depext -uivyj 2 $1";
-      "opam depext -uivyj 2 $1 || exit 1";
-      "" ] in
-    let cmd = String.concat ~sep:"\\n" lines in
-    run "printf '%s' > /home/opam/opam-ci-install && chmod a+x /home/opam/opam-ci-install && sudo mv /home/opam/opam-ci-install /usr/bin/opam-ci-install" cmd
+      "opam depext -uivyj 2 $1 || exit 1" ]
 end
 
 module V2 = struct
