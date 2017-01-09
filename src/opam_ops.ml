@@ -37,7 +37,7 @@ module V1 = struct
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
     in
     Docker_build.run build_t ~pull:true ~hum dfile >>= fun img ->
-    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
+    let cmd = ["opam-ci-archive"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t >>= fun build ->
     String.cuts ~sep:"\n" build |> List.rev |> function
     | hd::tl -> Term.return hd
@@ -102,7 +102,7 @@ module V2 = struct
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
     in
     Docker_build.run build_t ~pull:true ~hum dfile >>= fun img ->
-    let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/cache && opam admin make"] in
+    let cmd = ["opam-ci-archive"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t 
 
   let run_package ?volume t image pkg =
