@@ -103,7 +103,11 @@ module V2 = struct
     in
     Docker_build.run build_t ~pull:true ~hum dfile >>= fun img ->
     let cmd = ["opam-ci-archive"] in
-    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t 
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t >>= fun log ->
+    String.cuts ~sep:"\n" log |>
+    List.filter (String.is_prefix ~affix:"[ERROR] Got some errors while") |> function
+    | [] -> Term.return "Archives rebuilt"
+    | hd::tl -> Term.return hd
 
   let run_package ?volume t image pkg =
     let cmd = ["opam-ci-install";pkg] in
