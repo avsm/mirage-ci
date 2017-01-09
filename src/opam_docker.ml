@@ -115,9 +115,9 @@ module V1 = struct
     generate_sh "opam-ci-archive" [
       "sudo chown opam /home/opam/opam-repository/archives";
       "opam admin make 2>&1 | tee /tmp/build.log";
-      "errs=`grep '=== ERROR' /tmp/build.log | awk -F' ' '{print $3}' | xargs echo -n`";
-      "numerrs=`grep '=== ERROR' /tmp/build.log | awk -F' ' '{print $3}' | wc -l";
-      "num=`grep 'Packages to build' /tmp/build.log | awk -F' ' '{print $4}'`";
+      "errs=`grep \"=== ERROR\" /tmp/build.log | awk -F\" \" \"{print \\$3}\" | xargs echo -n`";
+      "numerrs=`grep \"=== ERROR\" /tmp/build.log | awk -F\" \" \"{print \\$3}\" | wc -l";
+      "num=`grep \"Packages to build\" /tmp/build.log | awk -F\" \" \"{print \\$4}\"`";
       "echo $num total, $num failed: $errs"
     ]
 end
