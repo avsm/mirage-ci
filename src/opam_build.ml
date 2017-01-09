@@ -46,7 +46,6 @@ module Opam_key = struct
     Pervasives.compare remotes b.remotes
 end
 
-
 module Opam_builder = struct
   type t = {
     label : string;

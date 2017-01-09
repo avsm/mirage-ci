@@ -28,6 +28,7 @@ module V1 = struct
     let dfile =
       let open Dockerfile in
       from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam" @@
+      OD.V1.add_archive_script @@
       OD.V1.set_opam_repo_rev rev in
     let hum = Fmt.strf "base image for opam archive (%s)" (String.with_range ~len:6 rev) in
     let volumes =
@@ -37,7 +38,10 @@ module V1 = struct
     in
     Docker_build.run build_t ~pull:true ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
-    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t 
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t >>= fun build ->
+    String.cuts ~sep:"\n" build |> List.rev |> function
+    | hd::tl -> Term.return hd
+    | [] -> Term.fail "No output from opam-admin make"
 
   let list_all_packages t image =
     let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
@@ -87,6 +91,7 @@ module V2 = struct
   let build_archive ?volume {build_t;run_t;_} rev =
     let dfile =
       from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
+      OD.V2.add_archive_script @@
       OD.V2.set_opam_repo_rev rev @@
       run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
     in

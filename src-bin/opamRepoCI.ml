@@ -45,7 +45,7 @@ module Builder = struct
     let archive_v2 = "Archive v2.0", (
       Term.target target >>= fun target ->
       Commit.hash (Target.head target) |>
-      Opam_ops.V1.build_archive ~volume:volume2 docker_t) in
+      Opam_ops.V2.build_archive ~volume:volume2 docker_t) in
     match Target.id target with
     |`Ref ["heads";"master"] -> archive_v1 :: archive_v2 :: (tests ~revdeps:false)
     |`Ref _  -> []

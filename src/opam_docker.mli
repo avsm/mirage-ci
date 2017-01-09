@@ -31,6 +31,7 @@ module type V = sig
   val switch_local_remote : Dockerfile.t
   val add_local_remote : Dockerfile.t
   val add_ci_script : Dockerfile.t
+  val add_archive_script : Dockerfile.t
 end
 
 module V1 : V

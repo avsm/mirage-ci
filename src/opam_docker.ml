@@ -46,6 +46,7 @@ module type V = sig
   val switch_local_remote : Dockerfile.t
   val add_local_remote : Dockerfile.t
   val add_ci_script : Dockerfile.t
+  val add_archive_script : Dockerfile.t
 end
 
 (* If remote is not ocaml/opam-repository, we need to fetch its refs *)
@@ -109,6 +110,16 @@ module V1 = struct
       "opam list";
       "echo opam depext -uivyj 2 $1";
       "opam depext -uivyj 2 $1 || exit 1" ]
+
+  let add_archive_script =
+    generate_sh "opam-ci-archive" [
+      "sudo chown opam /home/opam/opam-repository/archives";
+      "opam admin make 2>&1 | tee /tmp/build.log";
+      "errs=`grep '=== ERROR' /tmp/build.log | awk -F' ' '{print $3}' | xargs echo -n`";
+      "numerrs=`grep '=== ERROR' /tmp/build.log | awk -F' ' '{print $3}' | wc -l";
+      "num=`grep 'Packages to build' /tmp/build.log | awk -F' ' '{print $4}'`";
+      "echo $num total, $num failed: $errs"
+    ]
 end
 
 module V2 = struct
@@ -140,6 +151,12 @@ module V2 = struct
 
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev"
+
+  let add_archive_script =
+    generate_sh "opam-ci-archive" [
+      "sudo chown opam /home/opam/opam-repository/archives";
+      "opam admin make 2>&1 | tee /tmp/build.log"
+    ]
 end
 
 (*---------------------------------------------------------------------------
