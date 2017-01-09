@@ -154,7 +154,7 @@ module V2 = struct
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [
-      "sudo chown opam /home/opam/opam-repository/archives";
+      "sudo chown opam /home/opam/opam-repository/cache";
       "opam admin make 2>&1 | tee /tmp/build.log"
     ]
 end
