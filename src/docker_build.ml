@@ -105,7 +105,7 @@ module Docker_builder = struct
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/label") >>*= fun hum ->
     let tag = match Cstruct.to_string tag with | "" -> None | x -> Some (String.trim x) in
     let sha256 = String.trim (Cstruct.to_string sha256) in
-    let cmd = Printf.sprintf "docker inspect sha256:%s" sha256 in
+    let cmd = Printf.sprintf "docker inspect %s" sha256 in
     Process.run ~output:(fun _ -> ()) ("",[|"sh";"-c";cmd|]) >|= fun () ->
     { tag; sha256; hum=String.trim (Cstruct.to_string hum) }
 end
