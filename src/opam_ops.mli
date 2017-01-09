@@ -37,7 +37,7 @@ val run_revdeps : ?volume:Fpath.t -> opam_version:[`V1|`V2] ->
 
 module type V = sig
   open Datakit_github
-  val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
+  val build_archive : ?volume:Fpath.t -> Docker_ops.t -> string -> string t
   val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t * string
   val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
   val list_all_packages : Docker_run.t -> Docker_build.image -> string list t

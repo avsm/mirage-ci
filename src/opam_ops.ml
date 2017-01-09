@@ -12,7 +12,7 @@ module OD = Opam_docker
 
 module type V = sig
   open Term
-  val build_archive : ?volume:Fpath.t -> Docker_build.t -> Docker_run.t -> string -> string t
+  val build_archive : ?volume:Fpath.t -> Docker_ops.t -> string -> string t
   val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t * string
   val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
   val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
@@ -24,7 +24,7 @@ open Docker_ops
 module V1 = struct
   open !Dockerfile
 
-  let build_archive ?volume docker_build_t docker_run_t rev =
+  let build_archive ?volume {build_t;run_t;_} rev =
     let dfile =
       let open Dockerfile in
       from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam" @@
@@ -35,9 +35,9 @@ module V1 = struct
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
     in
-    Docker_build.run docker_build_t ~pull:true ~hum dfile >>= fun img ->
+    Docker_build.run build_t ~pull:true ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/archives && opam admin make"] in
-    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t 
 
   let list_all_packages t image =
     let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
@@ -84,7 +84,7 @@ end
 module V2 = struct
   open !Dockerfile
 
-  let build_archive ?volume docker_build_t docker_run_t rev =
+  let build_archive ?volume {build_t;run_t;_} rev =
     let dfile =
       from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
       OD.V2.set_opam_repo_rev rev @@
@@ -96,9 +96,9 @@ module V2 = struct
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
     in
-    Docker_build.run docker_build_t ~pull:true ~hum dfile >>= fun img ->
+    Docker_build.run build_t ~pull:true ~hum dfile >>= fun img ->
     let cmd = ["sh";"-c";"sudo chown opam /home/opam/opam-repository/cache && opam admin make"] in
-    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd docker_run_t 
+    Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t 
 
   let run_package ?volume t image pkg =
     let cmd = ["opam-ci-install";pkg] in

@@ -34,9 +34,20 @@ module Builder = struct
   let run_phases typ target =
     let tests ~revdeps =
       (repo_builder ~revdeps:false ~typ ~opam_version:`V1 target) @
-      (repo_builder ~revdeps ~typ ~opam_version:`V2 target) in
+      (repo_builder ~revdeps ~typ ~opam_version:`V2 target)
+    in
+    let volume1 = Fpath.v "opam-archive" in
+    let volume2 = Fpath.v "opam2-archive" in
+    let archive_v1 = "Archive v1.2", (
+      Term.target target >>= fun target ->
+      Commit.hash (Target.head target) |>
+      Opam_ops.V1.build_archive ~volume:volume1 docker_t) in
+    let archive_v2 = "Archive v2.0", (
+      Term.target target >>= fun target ->
+      Commit.hash (Target.head target) |>
+      Opam_ops.V1.build_archive ~volume:volume2 docker_t) in
     match Target.id target with
-    |`Ref ["heads";"master"] -> tests ~revdeps:false
+    |`Ref ["heads";"master"] -> archive_v1 :: archive_v2 :: (tests ~revdeps:false)
     |`Ref _  -> []
     |`PR _ -> tests ~revdeps:true
  
