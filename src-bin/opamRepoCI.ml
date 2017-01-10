@@ -17,6 +17,8 @@ module Builder = struct
   let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:24 ()
   let opam_t = Opam_build.v ~logs ~label
+  let volume_v1 = Fpath.v "opam-archive"
+  let volume_v2 = Fpath.v "opam2-archive"
 
   let packages_of_repo {Repo.user;repo} =
     match user, repo with
@@ -25,27 +27,25 @@ module Builder = struct
     | "mirage","mirage-dev" -> ["mirage.dev~mirage";"mirage-types";"mirage-types-lwt";"irmin"]
     | _ -> ["ocamlfind"]
 
-  let repo_builder ~revdeps ~typ ~opam_version target =
+  let repo_builder ~revdeps ~typ ~opam_version ?volume target =
     let default = packages_of_repo (Target.repo target) in
     let packages = Opam_ops.packages_from_diff ~default docker_t target in
     let opam_repo = Opam_docker.ocaml_opam_repository in
-    Opam_ops.run_phases ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ?volume ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
 
   let run_phases typ target =
     let tests ~revdeps =
-      (repo_builder ~revdeps:false ~typ ~opam_version:`V1 target) @
-      (repo_builder ~revdeps ~typ ~opam_version:`V2 target)
+      (repo_builder ~revdeps:false ~typ ~opam_version:`V1 ~volume:volume_v1 target) @
+      (repo_builder ~revdeps ~typ ~opam_version:`V2 ~volume:volume_v2 target)
     in
-    let volume1 = Fpath.v "opam-archive" in
-    let volume2 = Fpath.v "opam2-archive" in
     let archive_v1 = "Archive v1.2", (
       Term.target target >>= fun target ->
       Commit.hash (Target.head target) |>
-      Opam_ops.V1.build_archive ~volume:volume1 docker_t) in
+      Opam_ops.V1.build_archive ~volume:volume_v1 docker_t) in
     let archive_v2 = "Archive v2.0", (
       Term.target target >>= fun target ->
       Commit.hash (Target.head target) |>
-      Opam_ops.V2.build_archive ~volume:volume2 docker_t) in
+      Opam_ops.V2.build_archive ~volume:volume_v2 docker_t) in
     match Target.id target with
     |`Ref ["heads";"master"] ->
        let base_tests = tests ~revdeps:false in
