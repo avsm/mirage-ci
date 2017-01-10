@@ -47,7 +47,13 @@ module Builder = struct
       Commit.hash (Target.head target) |>
       Opam_ops.V2.build_archive ~volume:volume2 docker_t) in
     match Target.id target with
-    |`Ref ["heads";"master"] -> archive_v1 :: archive_v2 :: (tests ~revdeps:false)
+    |`Ref ["heads";"master"] ->
+       let base_tests = tests ~revdeps:false in
+       let archives =
+         match Target.repo target with
+         | {Repo.repo="opam-repository"; user="ocaml"} -> [archive_v1;archive_v2]
+         | _ -> [] in
+       archives @ base_tests
     |`Ref _  -> []
     |`PR _ -> tests ~revdeps:true
  
