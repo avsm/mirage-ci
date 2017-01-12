@@ -70,7 +70,7 @@ let web_config =
   Web.config
     ~name:"opam-repo-ci"
     ~can_read:ACL.(everyone)
-    ~can_build:ACL.(github_org "mirage")
+    ~can_build:ACL.(everyone)
     ~state_repo:(Uri.of_string "https://github.com/ocaml/ocaml-ci.logs")
     ()
 
