@@ -1,6 +1,6 @@
 FROM ocaml/opam:alpine-3.5_ocaml-4.03.0
 RUN cd /home/opam/opam-repository && git pull origin master && opam update -uy
-RUN cd /tmp && curl -OL https://test.docker.com/builds/Linux/x86_64/docker-1.13.0-rc6.tgz && tar -zxvf docker-1.13.0-rc6.tgz docker/docker && sudo mv docker/docker /usr/bin && rm -f docker-1.13.0-rc5.tgz
+RUN cd /tmp && curl -OL https://test.docker.com/builds/Linux/x86_64/docker-1.13.0-rc7.tgz && tar -zxvf docker-1.13.0-rc7.tgz docker/docker && sudo mv docker/docker /usr/bin && rm -f docker-1.13.0-rc7.tgz
 RUN opam pin add -n session --dev
 RUN opam pin add -n prometheus git://github.com/avsm/datakit#fix-datakit-ci-meta
 RUN opam pin add -n datakit-ci git://github.com/avsm/datakit#fix-datakit-ci-meta
