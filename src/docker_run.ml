@@ -51,6 +51,7 @@ module Docker_runner = struct
     let cmd = Array.of_list ("docker"::"run"::"--rm"::vols@img::cmd) in
     let cmd_output = Buffer.create 1024 in
     Live_log.heading log "Using base image %s" img;
+    Live_log.heading log "%s" (Fmt.(strf "%a" (array ~sep:sp string)) cmd);
     let output = tee [ Buffer.add_string cmd_output; Live_log.write log ] in
     Monitored_pool.use ~log ~label:"docker run" t.pool job_id (fun () ->
       Utils.with_timeout ~switch t.timeout (fun switch ->
