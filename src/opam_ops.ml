@@ -130,9 +130,10 @@ module V2 = struct
     Term.return r
 
   let list_all_packages {run_t} image =
-    let cmd = ["opam";"list";"-a";"-s";"--color=never";"--installable"] in
+    let cmd = ["opam";"list";"-a";"--columns=package";"--color=never";"--installable"] in
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n" >|=
+    List.filter (fun s -> not (String.is_prefix ~affix:"#" s)) >|=
     List.map (fun s -> String.trim s)
 
   let list_revdeps {run_t} image pkg =
