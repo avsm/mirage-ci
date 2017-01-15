@@ -44,12 +44,12 @@ module Opam_bulk_builder = struct
   let title _t keys = Fmt.strf "Reporting %d results" (List.length keys)
 
   let generate t ~switch ~log trans job_id results =
-    let results = Sexplib.Sexp.to_string_hum (sexp_of_keys results) in
-    Live_log.write log results;
+    let s = Sexplib.Sexp.to_string_hum (sexp_of_keys results) in
+    Live_log.write log s;
     let open Utils.Infix in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "results.sexp")
-      (Cstruct.of_string results) >>*= fun () ->
-    Lwt.return (Ok results)
+      (Cstruct.of_string s) >>*= fun () ->
+    Lwt.return (Ok (Fmt.strf "%d packages built" (List.length results)))
 
   let branch _t results =
     Sexplib.Sexp.to_string_hum (sexp_of_keys results) |>
