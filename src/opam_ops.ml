@@ -12,10 +12,10 @@ module OD = Opam_docker
 
 module type V = sig
   open Term
-  val build_archive : ?volume:Fpath.t -> Docker_ops.t -> string -> string t
+  val build_archive : ?volume:Fpath.t -> Docker_ops.t -> string -> (Docker_build.image * string) t
   val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t * string
   val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
-  val list_all_packages : Docker_run.t -> Docker_build.image -> string list t
+  val list_all_packages : Docker_ops.t -> Docker_build.image -> string list t
   val list_revdeps : Docker_ops.t -> Docker_build.image -> string -> string list t
   val run_revdeps: ?volume:Fpath.t -> Docker_ops.t -> string list -> Docker_build.image -> unit t
 end
@@ -40,12 +40,12 @@ module V1 = struct
     let cmd = ["opam-ci-archive"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t >>= fun build ->
     String.cuts ~sep:"\n" build |> List.rev |> function
-    | hd::tl -> Term.return hd
+    | hd::tl -> Term.return (img, hd)
     | [] -> Term.fail "No output from opam-admin make"
 
-  let list_all_packages t image =
+  let list_all_packages {run_t} image =
     let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
-    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n" >|=
     List.map (fun s -> String.trim s)
 
@@ -106,8 +106,8 @@ module V2 = struct
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t >>= fun log ->
     String.cuts ~sep:"\n" log |>
     List.filter (String.is_prefix ~affix:"[ERROR] Got some errors while") |> function
-    | [] -> Term.return "Archives rebuilt"
-    | hd::tl -> Term.return hd
+    | [] -> Term.return (img, "Archives rebuilt")
+    | hd::tl -> Term.return (img, hd)
 
   let run_package ?volume t image pkg =
     let cmd = ["opam-ci-install";pkg] in
@@ -129,9 +129,9 @@ module V2 = struct
     Term_utils.ignore_failure ~on_fail:(fun _ -> ()) >>= fun () ->
     Term.return r
 
-  let list_all_packages t image =
+  let list_all_packages {run_t} image =
     let cmd = ["opam";"list";"-a";"-s";"--color=never";"--installable"] in
-    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd t >|=
+    Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n" >|=
     List.map (fun s -> String.trim s)
 
@@ -206,6 +206,23 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   | [] -> Term.return ["base",img]
   | _ -> build_packages docker_t img packages
 
+(** TODO Merge with distro_build *)
+let distro_base ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t =
+  (* Get the commits for the mainline opam repo *)
+  let opam_repo, opam_repo_branch = opam_repo in
+  Term.branch_head opam_repo opam_repo_branch >>= fun opam_repo_commit ->
+  let opam_repo_remote = {Opam_docker.Remote.repo=opam_repo; commit=opam_repo_commit; full_remote=true} in
+  (* Get commits for any extra OPAM remotes *)
+  Term_utils.term_map_s (fun (repo,branch) ->
+    Term.branch_head repo branch >|= fun commit ->
+    {Opam_docker.Remote.repo; commit; full_remote=false}
+  ) remotes >>= fun remotes ->
+  let remotes = opam_repo_remote :: remotes in
+  Term.target target >>= fun target ->
+  Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
+  let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
+  Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df
+
 let primary_ocaml_version = "4.03.0"
 let compiler_variants = ["4.02.3";"4.04.0";"4.04.0_flambda"]
 
@@ -271,7 +288,25 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
         Term_utils.report ~order:5 ~label:(lf "All Distros") phase5;
     ] @ (match revdeps with false -> [] | true ->
         [Term_utils.report ~order:2 ~label:(lf "Revdeps") phase2])
- 
+
+let bulk_build ?volume ~revdeps ~remotes ~typ ~ocaml_version ~distro ~opam_version ~opam_repo opam_t docker_t target =
+  let base_img =
+    let packages = ["ocamlfind"] in
+    distro_base ~packages ~target ~distro ~ocaml_version ~remotes
+     ~typ:`Full_repo ~opam_version ~opam_repo opam_t docker_t
+  in
+  let packages =
+    base_img >>= fun img ->
+    match opam_version with
+    | `V1 -> V1.list_all_packages docker_t img
+    | `V2 -> V2.list_all_packages docker_t img
+  in
+  let build =
+    packages >>= fun packages ->
+    distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
+  in
+  failwith "foo"
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 
