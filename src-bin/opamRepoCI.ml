@@ -17,6 +17,7 @@ module Builder = struct
   let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:24 ()
   let opam_t = Opam_build.v ~logs ~label
+  let opam_bulk_t = Opam_bulk_build.v ~label ~logs
   let volume_v1 = Fpath.v "opam-archive"
   let volume_v2 = Fpath.v "opam2-archive"
 
@@ -62,8 +63,11 @@ module Builder = struct
   let run_bulk typ target =
     match Target.id target with
     |`Ref ["heads";"bulk"] ->
-       let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
-       Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" ~opam_version:`V2 ~opam_repo opam_t docker_t target
+       let t = 
+         let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" ~opam_version:`V2 ~opam_repo opam_t docker_t target >>= fun r ->
+         Opam_bulk_build.run opam_bulk_t r in
+       ["V2 Bulk", t]
     |_ -> []
  
   let tests = [

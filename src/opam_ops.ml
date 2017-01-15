@@ -314,8 +314,7 @@ let bulk_build ?volume ~remotes ~ocaml_version
     in 
     fn res []
   in
-  let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
-  [ Term_utils.report ~order:1 ~label:(lf "Bulk") t ]
+  t
     
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
