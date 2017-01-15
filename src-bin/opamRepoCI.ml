@@ -41,11 +41,13 @@ module Builder = struct
     let archive_v1 = "Archive v1.2", (
       Term.target target >>= fun target ->
       Commit.hash (Target.head target) |>
-      Opam_ops.V1.build_archive ~volume:volume_v1 docker_t) in
+      Opam_ops.V1.build_archive ~volume:volume_v1 docker_t) >>= fun (_,res) ->
+      Term.return res in
     let archive_v2 = "Archive v2.0", (
       Term.target target >>= fun target ->
       Commit.hash (Target.head target) |>
-      Opam_ops.V2.build_archive ~volume:volume_v2 docker_t) in
+      Opam_ops.V2.build_archive ~volume:volume_v2 docker_t) >>= fun (_,res) ->
+      Term.return res in
     match Target.id target with
     |`Ref ["heads";"master"] ->
        let base_tests = tests ~revdeps:false in
@@ -56,9 +58,17 @@ module Builder = struct
        archives @ base_tests
     |`Ref _  -> []
     |`PR _ -> tests ~revdeps:true
+
+  let run_bulk typ target =
+    match Target.id target with
+    |`Ref ["heads";"bulk"] ->
+       let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
+       Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" ~opam_version:`V2 ~opam_repo opam_t docker_t target
+    |_ -> []
  
   let tests = [
     Config.project ~id:"ocaml/opam-repository" (run_phases `Full_repo);
+    Config.project ~id:"mirage/opam-repository" (run_bulk `Full_repo);
     Config.project ~id:"janestreet/opam-repository" (run_phases `Repo);
     Config.project ~id:"mirage/mirage-dev" (run_phases `Repo);
   ]

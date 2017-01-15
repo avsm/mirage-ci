@@ -33,6 +33,17 @@ val run_phases :
   Docker_ops.t ->
   Datakit_ci.Target.t -> (string * string Datakit_ci.Term.t) list
 
+val bulk_build :
+  ?volume:Fpath.t ->
+  remotes:(Datakit_github.Repo.t * string) list ->
+  ocaml_version:string ->
+  distro:string ->
+  opam_version:[ `V1 | `V2 ] ->
+  opam_repo:Datakit_github.Repo.t * string ->
+  Opam_build.t ->
+  Docker_ops.t ->
+  Datakit_ci.Target.t -> (string * string Datakit_ci.Term.t) list
+
 val run_revdeps : ?volume:Fpath.t -> opam_version:[`V1|`V2] ->
   Docker_ops.t -> string list -> Docker_build.image -> unit t
 
