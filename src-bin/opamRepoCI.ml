@@ -63,11 +63,16 @@ module Builder = struct
   let run_bulk typ target =
     match Target.id target with
     |`Ref ["heads";"bulk"] ->
-       let t = 
+       let main = 
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
          Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" ~opam_version:`V2 ~opam_repo opam_t docker_t target >>= fun r ->
          Opam_bulk_build.run opam_bulk_t r in
-       ["V2 Bulk", t]
+       let mirage = 
+         let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
+         let mirage_dev_repo = Opam_docker.repo ~user:"mirage" ~repo:"mirage-dev" ~branch:"master" in
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[mirage_dev_repo] ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" ~opam_version:`V2 ~opam_repo opam_t docker_t target >>= fun r ->
+         Opam_bulk_build.run opam_bulk_t r in
+       ["V2 Bulk", main; "V2 Bulk-Mirage-Dev", mirage]
     |_ -> []
  
   let tests = [
