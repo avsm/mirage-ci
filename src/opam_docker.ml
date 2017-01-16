@@ -125,7 +125,18 @@ end
 module V2 = struct
   open !Dockerfile
 
-  let add_remotes = V1.add_remotes
+  let add_remotes rs =
+    let remotes_ref = ref 0 in
+    List.map (fun {Remote.repo; commit; _} ->
+     incr remotes_ref;
+     let dir_name = Fmt.strf "/home/opam/remotes/%d" !remotes_ref in
+     let repo_name = Fmt.strf "%a" Repo.pp repo in
+     run "git clone https://github.com/%s.git %s" repo_name dir_name @@
+     run "cd %s && git checkout %s && opam admin upgrade-format" dir_name (Commit.hash commit) @@
+     run "opam remote add e%d %s" !remotes_ref dir_name
+    ) rs |> fun remotes ->
+    empty @@@ remotes
+
   let clone_src = V1.clone_src
   let add_local_pins = V1.add_local_pins
   let add_ci_script = V1.add_ci_script
