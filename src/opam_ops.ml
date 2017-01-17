@@ -293,7 +293,7 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
 let bulk_build ?volume ~remotes ~ocaml_version
     ~distro ~opam_version ~opam_repo opam_t docker_t target =
   let t =
-    let packages = ["ocamlfind"] in
+    let packages = ["ocamlfind";"camlp4";"ocamlbuild"] in
     distro_base ~packages ~target ~distro ~ocaml_version ~remotes
      ~typ:`Full_repo ~opam_version ~opam_repo opam_t docker_t >>= fun img ->
     (match opam_version with
