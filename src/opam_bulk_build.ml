@@ -1,5 +1,5 @@
 (*---------------------------------------------------------------------------
-   Copyright (c) 2016 Anil Madhavapeddy. All rights reserved.
+   Copyright (c) 2016-2017 Anil Madhavapeddy. All rights reserved.
    Distributed under the ISC license, see terms at the end of the file.
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
@@ -23,6 +23,8 @@ type key = {
 } [@@deriving sexp]
 
 type keys = key list [@@deriving sexp]
+
+let compare = Pervasives.compare
 
 module Opam_bulk_build_key = struct
  type t = keys
@@ -71,8 +73,69 @@ let run config results =
   Term.job_id >>= fun job_id ->
   Opam_bulk_build_cache.find config job_id results
 
+module K = struct
+  type t = key
+    let ( ++ ) x fn =
+    match x with
+    | 0 -> fn ()
+    | r -> r
+
+  let split_name p =
+    match String.cut ~sep:"." p with
+    |Some (k,v) -> k,v
+    |None -> p,"0"
+
+  let compare a {ocaml_version;distro;package;success;log_branch} =
+    compare ocaml_version a.ocaml_version ++ fun () ->
+    compare distro a.distro ++ fun () ->
+    compare package a.package ++ fun () ->
+    compare success a.success
+end
+
+module P = Map.Make(String)
+ 
+let diff ~ocaml_version ~distro a b ppf =
+  let a = List.filter (fun t -> t.ocaml_version = ocaml_version && t.distro = distro) a in
+  let b = List.filter (fun t -> t.ocaml_version = ocaml_version && t.distro = distro) b in
+  let pold =
+    List.fold_left (fun m p ->
+      let name, version = K.split_name p.package in
+      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+      P.add name p m) P.empty a in
+  let pnew = 
+    List.fold_left (fun m p ->
+      let name, version = K.split_name p.package in
+      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+      P.add name p m) P.empty b in
+  P.iter (fun name p ->
+    match P.find name pnew with
+    |p' when K.compare p p' <> 0 -> begin
+      let _, v1 = K.split_name p.package in
+      let _, v2 = K.split_name p'.package in
+      match p.success, p'.success with
+      |true, false -> Fmt.pf ppf "%s (%s -> %s) fails now\n" name v1 v2
+      |false, true -> Fmt.pf ppf "%s (%s -> %s) broken before and now builds\n" name v1 v2
+      |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken\n" name v1 v2
+      |true, true -> ()
+    end
+    |p' -> ()
+    |exception Not_found ->
+      let _, v1 = K.split_name p.package in
+      Fmt.pf ppf "%s (%s) is now uninstallable\n" name v1
+  ) pold;
+  P.iter (fun name p ->
+   match P.find name pold with
+   |_ -> ()
+   |exception Not_found -> begin
+     let _, v1 = K.split_name p.package in
+     match p.success with
+     |false -> Fmt.pf ppf "%s (new %s) fails now\n" name v1
+     |true -> ()
+   end
+  ) pnew
+ 
 (*---------------------------------------------------------------------------
-   Copyright (c) 2016 Anil Madhavapeddy
+   Copyright (c) 2016-2017 Anil Madhavapeddy
 
    Permission to use, copy, modify, and/or distribute this software for any
    purpose with or without fee is hereby granted, provided that the above

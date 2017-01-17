@@ -16,14 +16,16 @@ type key = {
   package: string;
   success: bool;
   log_branch: string;
-} 
+} [@@deriving sexp]
 
-type keys = key list
+type keys = key list [@@deriving sexp]
 
 val v : label:string -> logs:Datakit_ci.Live_log.manager -> t
 (** [v ~label] will configure an [Opam_bulk_build] instance. *)
 
 val run : t -> keys -> string Term.t
+
+val diff : ocaml_version:string -> distro:string -> keys -> keys -> Format.formatter -> unit
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

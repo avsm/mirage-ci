@@ -5,7 +5,9 @@
   ---------------------------------------------------------------------------*)
 
 open Lwt.Infix
+open Astring
 
+(*
 module Store = Irmin_unix.Irmin_git.Memory(Irmin.Contents.String)(Irmin.Ref.String)(Irmin.Hash.SHA1)
 module Sync = Irmin.Sync(Store)
 
@@ -28,13 +30,26 @@ let main root =
   Store.read_exn (t "read") ["value";"results.sexp"] >>= fun s ->
   print_endline s;
   Lwt.return ()
+*)
+
+let parse_raw (a,b) =
+  let parse f =
+    match Bos.OS.File.read (Fpath.v f) with
+    | Ok f -> Astring.String.trim f |> Sexplib.Sexp.of_string |> Opam_bulk_build.keys_of_sexp
+    | Error (`Msg m) -> failwith m
+  in
+  let open Opam_bulk_build in
+  let a = parse a in let b = parse b in
+  Opam_bulk_build.diff ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" a b Format.std_formatter;
+  Lwt.return_unit
 
 let setup_log style_renderer level =
   Fmt_tty.setup_std_outputs ?style_renderer ();
   Logs.set_level level;
   Logs.set_reporter (Logs_fmt.reporter ())
 
-let run_lwt db_dir () = Lwt_main.run (main db_dir)
+(* let run_lwt db_dir () = Lwt_main.run (main db_dir) *)
+let run_lwt raw () = Lwt_main.run (parse_raw raw)
 open Cmdliner
 
 let setup_log =
@@ -44,8 +59,12 @@ let db_dir =
   let doc = "Directory to store the db in" in
   Arg.(required & opt (some dir) None & info ["d"; "db-directory"] ~docv:"DB_DIRECTORY" ~doc)
 
+let raw =
+  let doc = "Raw before/after sexp results to compare" in
+  Arg.(required & opt (some (pair string string)) None & info ["r";"results"] ~docv:"RESULTS" ~doc)
+
 let main () =
-  match Term.(eval (const run_lwt $ db_dir $ setup_log, Term.info "opam-bulk-scry")) with
+  match Term.(eval (const run_lwt $ raw $ setup_log, Term.info "opam-bulk-scry")) with
   | `Error _ -> exit 1
   | _ -> exit (if Logs.err_count () > 0 then 1 else 0)
 
