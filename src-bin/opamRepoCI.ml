@@ -18,6 +18,7 @@ module Builder = struct
   let docker_t = DO.v ~logs ~label ~jobs:24 ()
   let opam_t = Opam_build.v ~logs ~label
   let opam_bulk_t = Opam_bulk_build.v ~label ~logs
+  let opam_bulk_diff_t = Opam_bulk_build_diff.v ~label ~logs
   let volume_v1 = Fpath.v "opam-archive"
   let volume_v2 = Fpath.v "opam2-archive"
 
@@ -63,16 +64,23 @@ module Builder = struct
   let run_bulk typ target =
     match Target.id target with
     |`Ref ["heads";"bulk"] ->
+       let distro = "ubuntu-16.04" in
+       let ocaml_version = "4.03.0" in
        let main = 
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
-         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" ~opam_version:`V2 ~opam_repo opam_t docker_t target >>= fun r ->
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target >>= fun r ->
          Opam_bulk_build.run opam_bulk_t r in
        let mirage = 
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
          let mirage_dev_repo = Opam_docker.repo ~user:"mirage" ~repo:"mirage-dev" ~branch:"master" in
-         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[mirage_dev_repo] ~ocaml_version:"4.03.0" ~distro:"ubuntu-16.04" ~opam_version:`V2 ~opam_repo opam_t docker_t target >>= fun r ->
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[mirage_dev_repo] ~ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target >>= fun r ->
          Opam_bulk_build.run opam_bulk_t r in
-       ["V2 Bulk", main; "V2 Bulk-Mirage-Dev", mirage]
+       let diff =
+         Term.without_logs main >>= fun main ->
+         Term.without_logs mirage >>= fun mirage ->
+         Opam_bulk_build_diff.run ~ocaml_version ~distro main mirage opam_bulk_diff_t
+       in
+       ["V2 Bulk", main; "V2 Bulk-Mirage-Dev", mirage; "Results", diff]
     |_ -> []
  
   let tests = [

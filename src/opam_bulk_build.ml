@@ -60,7 +60,7 @@ module Opam_bulk_builder = struct
   let load _t tr _key =
     let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/results.sexp") >>*= fun output ->
-    Lwt.return (Cstruct.to_string output)
+    Lwt.return (Cstruct.to_string output |> String.trim)
 end
  
 module Opam_bulk_build_cache = Cache.Make(Opam_bulk_builder)
@@ -97,6 +97,7 @@ module P = Map.Make(String)
 let diff ~ocaml_version ~distro a b ppf =
   let a = List.filter (fun t -> t.ocaml_version = ocaml_version && t.distro = distro) a in
   let b = List.filter (fun t -> t.ocaml_version = ocaml_version && t.distro = distro) b in
+  let pfnl () = Format.pp_print_newline ppf () in
   let pold =
     List.fold_left (fun m p ->
       let name, version = K.split_name p.package in
@@ -113,15 +114,15 @@ let diff ~ocaml_version ~distro a b ppf =
       let _, v1 = K.split_name p.package in
       let _, v2 = K.split_name p'.package in
       match p.success, p'.success with
-      |true, false -> Fmt.pf ppf "%s (%s -> %s) fails now\n" name v1 v2
-      |false, true -> Fmt.pf ppf "%s (%s -> %s) broken before and now builds\n" name v1 v2
-      |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken\n" name v1 v2
+      |true, false -> Fmt.pf ppf "%s (%s -> %s) fails now" name v1 v2; pfnl ()
+      |false, true -> Fmt.pf ppf "%s (%s -> %s) broken before and now builds" name v1 v2; pfnl ()
+      |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken" name v1 v2; pfnl ()
       |true, true -> ()
     end
     |p' -> ()
     |exception Not_found ->
       let _, v1 = K.split_name p.package in
-      Fmt.pf ppf "%s (%s) is now uninstallable\n" name v1
+      Fmt.pf ppf "%s (%s) is now uninstallable" name v1; pfnl ()
   ) pold;
   P.iter (fun name p ->
    match P.find name pold with
@@ -129,7 +130,7 @@ let diff ~ocaml_version ~distro a b ppf =
    |exception Not_found -> begin
      let _, v1 = K.split_name p.package in
      match p.success with
-     |false -> Fmt.pf ppf "%s (new %s) fails now\n" name v1
+     |false -> Fmt.pf ppf "%s (new %s) fails now" name v1; pfnl ()
      |true -> ()
    end
   ) pnew
