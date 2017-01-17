@@ -100,6 +100,7 @@ module V1 = struct
   let add_local_remote =
     run "opam remote add local /home/opam/src"
 
+  (* TODO support multiple args *)
   let add_ci_script =
     generate_sh "opam-ci-install" [
       "if ! opam install $1 --dry-run; then";
