@@ -221,6 +221,7 @@ let distro_base ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ver
   let remotes = opam_repo_remote :: remotes in
   Term.target target >>= fun target ->
   Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
+  let df = Dockerfile.(df @@ run "opam-ci-install %s" (String.concat ~sep:" " packages)) in
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df
 

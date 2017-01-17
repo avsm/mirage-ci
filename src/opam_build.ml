@@ -13,7 +13,7 @@ let src = Logs.Src.create "datakit-ci.opam" ~doc:"OPAM plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
 type key = {
-  packages: string list;
+  packages: string list; (* TODO merge this with Packages as only used there *)
   distro: string;
   ocaml_version: string;
   remotes: Remote.t list;
