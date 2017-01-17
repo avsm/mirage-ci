@@ -44,7 +44,7 @@ module Opam_bulk_builder_diff = struct
     let open Utils.Infix in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "results.txt")
       (Cstruct.of_string s) >>*= fun () ->
-    Lwt.return (Ok "Analysis complete")
+    Lwt.return (Ok s)
 
   let branch _t {Key.ocaml_version; distro; o; n } =
     Fmt.strf "opam-bulk-diff-%s-%s-%s" ocaml_version distro 
@@ -54,7 +54,7 @@ module Opam_bulk_builder_diff = struct
   let load _t tr _key =
     let open Utils.Infix in
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/results.txt") >>*= fun output ->
-    Lwt.return ("Analysis complete")
+    Lwt.return (Cstruct.to_string output |> String.trim)
 end
  
 module Opam_bulk_build_diff_cache = Cache.Make(Opam_bulk_builder_diff)
@@ -65,8 +65,6 @@ let v ~label = Opam_bulk_build_diff_cache.create { Opam_bulk_builder_diff.label 
 let run ~ocaml_version ~distro o n config =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  let o = Sexplib.Sexp.of_string o |> Opam_bulk_build.keys_of_sexp in
-  let n = Sexplib.Sexp.of_string n |> Opam_bulk_build.keys_of_sexp in
   let t = {Opam_bulk_build_diff_key.ocaml_version; distro; o; n} in
   Opam_bulk_build_diff_cache.find config job_id t
 
