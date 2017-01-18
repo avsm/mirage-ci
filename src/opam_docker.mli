@@ -23,6 +23,7 @@ val mirage_opam_repository : Repo.t * string
 val js_opam_repository : Repo.t * string
 
 module type V = sig
+  val add_cache_dir : Dockerfile.t
   val add_remotes : Remote.t list -> Dockerfile.t
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
   val base : ocaml_version:string -> distro:string -> Dockerfile.t

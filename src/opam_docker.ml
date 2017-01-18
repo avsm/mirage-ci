@@ -38,6 +38,7 @@ let mirage_opam_repository = repo ~user:"mirage" ~repo:"opam-repository" ~branch
 let js_opam_repository = repo ~user:"janestreet" ~repo:"opam-repository" ~branch:"master"
 
 module type V = sig
+  val add_cache_dir : Dockerfile.t
   val add_remotes : Remote.t list -> Dockerfile.t
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
@@ -65,6 +66,8 @@ let generate_sh targ lines =
 
 module V1 = struct
   open !Dockerfile
+
+  let add_cache_dir = Dockerfile.empty
 
   let add_remotes rs =
     let remotes_ref = ref 0 in
@@ -126,6 +129,9 @@ end
 module V2 = struct
   open !Dockerfile
 
+  let add_cache_dir =
+    run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
+
   let add_remotes rs =
     let remotes_ref = ref 0 in
     List.map (fun {Remote.repo; commit; _} ->
@@ -162,7 +168,8 @@ module V2 = struct
     run "git commit -a -m 'upgrade format to opam2'"
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev"
+    from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev" @@
+    add_cache_dir
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [

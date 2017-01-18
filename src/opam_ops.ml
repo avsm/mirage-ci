@@ -93,7 +93,7 @@ module V2 = struct
       from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
       OD.V2.add_archive_script @@
       OD.V2.set_opam_repo_rev rev @@
-      run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
+      OD.V2.add_cache_dir
     in
     let hum = Fmt.strf "base image for opam2 archive (%s)" (String.with_range ~len:6 rev) in
     let volumes =
