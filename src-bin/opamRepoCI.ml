@@ -27,6 +27,7 @@ module Builder = struct
     | "ocaml","opam-repository" -> ["lwt";"async";"coq";"mirage";"datakit"]
     | "janestreet","opam-repository" -> ["async";"async_ssl";"jenga";"jane-street-tests"]
     | "mirage","mirage-dev" -> ["mirage.dev~mirage";"mirage-types";"mirage-types-lwt";"irmin"]
+    | "mirage","mirageos-3-beta" -> ["arp";"charrua-client";"conduit";"dns";"fat-filesystem";"functoria";"logs-syslog";"mirage-types-lwt";"mirage-solo5";"tls";"vchan";"mirage-xen";"mirage-vnetif";"mirage-unix";"tar-format"]
     | _ -> ["ocamlfind"]
 
   let repo_builder ~revdeps ~typ ~opam_version ?volume target =
@@ -88,6 +89,7 @@ module Builder = struct
     Config.project ~id:"mirage/opam-repository" (run_bulk `Full_repo);
     Config.project ~id:"janestreet/opam-repository" (run_phases `Repo);
     Config.project ~id:"mirage/mirage-dev" (run_phases `Repo);
+    Config.project ~id:"mirage/mirageos-3-beta" (run_phases `Repo);
   ]
 end
 
