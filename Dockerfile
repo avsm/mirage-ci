@@ -5,6 +5,7 @@ RUN opam pin add -n session --dev
 RUN opam pin add -n prometheus git://github.com/docker/datakit
 RUN opam pin add -n prometheus-app git://github.com/docker/datakit
 RUN opam pin add -n datakit-ci git://github.com/docker/datakit
+RUN opam pin add -n datakit-client git://github.com/docker/datakit
 RUN opam depext -uivy -j 4 datakit-ci conf-libev
 RUN opam depext -uivy -j 4 toml irmin-unix ezjsonm dockerfile bos ptime fmt
 ADD . /home/opam/src
