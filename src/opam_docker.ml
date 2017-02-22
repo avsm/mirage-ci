@@ -149,11 +149,11 @@ module V2 = struct
   let add_ci_script = V1.add_ci_script
 
   let switch_local_remote =
-    run "opam admin upgrade-format" @@
+    run "opam admin upgrade" @@
     run "opam remote set-url default /home/opam/src"
    
   let add_local_remote =
-    run "opam admin upgrade-format" @@
+    run "opam admin upgrade" @@
     run "opam remote add local /home/opam/src"
     
   let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
@@ -163,7 +163,7 @@ module V2 = struct
     run "git fetch origin %s:%s" branch dst_branch @@
     run "git branch -D v2" @@
     run "git checkout -b v2 %s" rev @@
-    run "opam admin upgrade-format" @@
+    run "opam admin upgrade" @@
     run "git add ." @@
     run "git commit -a -m 'upgrade format to opam2'"
 
