@@ -1,6 +1,6 @@
 FROM ocaml/opam:alpine-3.5_ocaml-4.03.0
 RUN cd /home/opam/opam-repository && git pull origin master && opam update -uy
-RUN cd /tmp && curl -OL https://test.docker.com/builds/Linux/x86_64/docker-1.13.1-rc2.tgz && tar -zxvf docker-1.13.1-rc2.tgz docker/docker && sudo mv docker/docker /usr/bin && rm -f docker-1.13.0-rc7.tgz
+RUN cd /tmp && curl -OL https://test.docker.com/builds/Linux/x86_64/docker-17.03.0-ce-rc1.tgz && tar -zxvf docker-17.03.0-ce-rc1.tgz docker/docker && sudo mv docker/docker /usr/bin && rm -f docker-17.03.0-ce-rc1.tgz
 RUN opam pin add -n datakit-server.dev git://github.com/docker/datakit
 RUN opam pin add -n datakit-github.dev git://github.com/docker/datakit
 RUN opam pin add -n datakit-client.dev git://github.com/docker/datakit
