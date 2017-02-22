@@ -139,7 +139,7 @@ module V2 = struct
      let dir_name = Fmt.strf "/home/opam/remotes/%d" !remotes_ref in
      let repo_name = Fmt.strf "%a" Repo.pp repo in
      run "git clone https://github.com/%s.git %s" repo_name dir_name @@
-     run "cd %s && git checkout %s && opam admin upgrade-format" dir_name (Commit.hash commit) @@
+     run "cd %s && git checkout %s && opam admin upgrade" dir_name (Commit.hash commit) @@
      run "opam remote add e%d %s" !remotes_ref dir_name
     ) rs |> fun remotes ->
     empty @@@ remotes
