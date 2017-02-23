@@ -87,8 +87,8 @@ module Builder = struct
   let tests = [
     Config.project ~id:"ocaml/opam-repository" (run_phases `Full_repo);
     Config.project ~id:"janestreet/opam-repository" (run_phases `Repo);
-    Config.project ~id:"mirage/mirageos-3-beta" (run_phases `Repo);
 (*
+    Config.project ~id:"mirage/mirageos-3-beta" (run_phases `Repo);
     Config.project ~id:"mirage/opam-repository" (run_bulk `Full_repo);
     Config.project ~id:"mirage/mirage-dev" (run_phases `Repo);
 *)
