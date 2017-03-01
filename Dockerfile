@@ -1,11 +1,7 @@
-FROM ocaml/opam:alpine-3.5_ocaml-4.03.0
+FROM ocaml/opam:alpine
 RUN cd /home/opam/opam-repository && git pull origin master && opam update -uy
 RUN cd /tmp && curl -OL https://test.docker.com/builds/Linux/x86_64/docker-17.03.0-ce-rc1.tgz && tar -zxvf docker-17.03.0-ce-rc1.tgz docker/docker && sudo mv docker/docker /usr/bin && rm -f docker-17.03.0-ce-rc1.tgz
-RUN opam pin add -n datakit-server.dev git://github.com/docker/datakit
-RUN opam pin add -n datakit-github.dev git://github.com/docker/datakit
-RUN opam pin add -n datakit-client.dev git://github.com/docker/datakit
-RUN opam pin add -n datakit-bridge-github.dev git://github.com/docker/datakit
-RUN opam pin add -n datakit-ci.dev https://github.com/avsm/datakit.git#fix-meta
+RUN opam pin add -n datakit-ci.dev --dev
 RUN opam depext -uivy -j 4 datakit-ci conf-libev
 RUN opam depext -uivy -j 4 toml irmin-unix ezjsonm dockerfile bos ptime fmt
 ADD . /home/opam/src
