@@ -7,7 +7,7 @@ sudo: false
 env:
  global:
    - PACKAGE="mirage-ci"
-   - PINS="prometheus:https://github.com/docker/datakit.git prometheus-app:https://github.com/docker/datakit.git datakit-client:https://github.com/docker/datakit.git datakit-ci:https://github.com/docker/datakit.git"
+   - PINS="datakit-ci:https://github.com/docker/datakit.git"
    - PRE_INSTALL_HOOK="cd /home/opam/opam-repository && git pull origin master && opam update -u -y"
  matrix:
    - DISTRO=debian-stable OCAML_VERSION=4.03.0
