@@ -12,6 +12,7 @@ let () =
 (*
     Pkg.bin "src-bin/opamCI"; *)
     Pkg.bin "src-bin/opamRepoCI";
+    Pkg.bin "src-bin/opamBulkCI";
 (*
     Pkg.bin "src-bin/datakitToml";
     Pkg.bin "src-bin/opam-bulk-scry"; *)
