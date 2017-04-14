@@ -22,12 +22,6 @@ module Builder = struct
   let volume_v1 = Fpath.v "opam-archive"
   let volume_v2 = Fpath.v "opam2-archive"
 
-  let repo_builder ~revdeps ~typ ~opam_version ?volume target =
-    let default = packages_of_repo (Target.repo target) in
-    let packages = Opam_ops.packages_from_diff ~default docker_t target in
-    let opam_repo = Opam_docker.ocaml_opam_repository in
-    Opam_ops.run_phases ?volume ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
-
   let run_bulk typ target =
     match Target.id target with
     |`Ref ["heads";"bulk"] ->
