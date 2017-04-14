@@ -46,7 +46,7 @@ module Builder = struct
        let mirage = mirage_t >>= Opam_bulk_build.run opam_bulk_t in
        ["V2 Bulk", main; "V2 Bulk-Mirage-Dev", mirage; "Results", diff]
 *)
-       ["V2 Bulk"; main ]
+       ["V2 Bulk", main ]
     |_ -> []
  
   let tests = [
