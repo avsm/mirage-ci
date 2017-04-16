@@ -15,7 +15,9 @@ let ( / ) = Datakit_path.Infix.( / )
 
 module Opam_bulk_build_diff_key = struct
  open Opam_bulk_build
- type t = { ocaml_version: string; distro: string; o: keys; n: keys }
+ type t = 
+  | Remote of { ocaml_version: string; distro: string; o: keys; n: keys }
+  | OCaml_version of { ocaml_version_a: string; ocaml_version_b: string; distro: string; o: keys; n: keys }
  let compare = Pervasives.compare
 end
 
@@ -31,14 +33,23 @@ module Opam_bulk_builder_diff = struct
 
   let name t = "opam-bulk-diff:" ^ t.label
 
-  let title _t {Key.o;n;ocaml_version;distro} =
-    Fmt.strf "Diffing %d -> %d packages (%s-%s)"
-     (List.length o) (List.length n) distro ocaml_version
+  let title _t = 
+    function
+    | Opam_bulk_build_diff_key.(Remote {o;n;ocaml_version;distro}) ->
+        Fmt.strf "Diffing %d -> %d packages (%s-%s)"
+         (List.length o) (List.length n) distro ocaml_version
+    | Opam_bulk_build_diff_key.(OCaml_version {o;n;ocaml_version_a;ocaml_version_b;distro}) ->
+        Fmt.strf "Diffing %d -> %d packages (%s %s->%s)"
+         (List.length o) (List.length n) distro ocaml_version_a ocaml_version_b
 
-  let generate t ~switch ~log trans job_id {Key.o;n;ocaml_version;distro} =
+  let generate t ~switch ~log trans job_id j =
     let buf = Buffer.create 1024 in
     let ppf = Format.formatter_of_buffer buf in
-    Opam_bulk_build.diff ~ocaml_version ~distro o n ppf;
+    (match j with
+     | Opam_bulk_build_diff_key.(Remote {o;n;ocaml_version;distro}) ->
+          Opam_bulk_build.diff ~ocaml_version ~distro o n ppf;
+     | Opam_bulk_build_diff_key.(OCaml_version {o;n;ocaml_version_a;ocaml_version_b;distro}) ->
+          Opam_bulk_build.diff_by_ocaml_version (ocaml_version_a,ocaml_version_b) ~distro o n ppf);
     let s = Buffer.contents buf in
     Live_log.write log s;
     let open Utils.Infix in
@@ -46,10 +57,17 @@ module Opam_bulk_builder_diff = struct
       (Cstruct.of_string s) >>*= fun () ->
     Lwt.return (Ok s)
 
-  let branch _t {Key.ocaml_version; distro; o; n } =
-    Fmt.strf "opam-bulk-diff-%s-%s-%s" ocaml_version distro 
-    ((Sexplib.Sexp.to_string_hum (Opam_bulk_build.sexp_of_keys o) ^ (Sexplib.Sexp.to_string_hum (Opam_bulk_build.sexp_of_keys n))) |>
-    Digest.string |> Digest.to_hex)
+  let branch _t =
+    function
+    | Opam_bulk_build_diff_key.(Remote {o;n;ocaml_version;distro}) ->
+      Fmt.strf "opam-bulk-diff-%s-%s-%s" ocaml_version distro 
+      ((Sexplib.Sexp.to_string_hum (Opam_bulk_build.sexp_of_keys o) ^ (Sexplib.Sexp.to_string_hum (Opam_bulk_build.sexp_of_keys n))) |>
+      Digest.string |> Digest.to_hex)
+    | Opam_bulk_build_diff_key.(OCaml_version {o;n;ocaml_version_a;ocaml_version_b;distro}) ->
+      Fmt.strf "opam-bulk-diff-%s-%s-%s-%s" ocaml_version_a ocaml_version_b distro 
+      ((Sexplib.Sexp.to_string_hum (Opam_bulk_build.sexp_of_keys o) ^ (Sexplib.Sexp.to_string_hum (Opam_bulk_build.sexp_of_keys n))) |>
+      Digest.string |> Digest.to_hex)
+      
 
   let load _t tr _key =
     let open Utils.Infix in
@@ -62,10 +80,16 @@ module Opam_bulk_build_diff_cache = Cache.Make(Opam_bulk_builder_diff)
 type t = Opam_bulk_build_diff_cache.t 
 let v ~label = Opam_bulk_build_diff_cache.create { Opam_bulk_builder_diff.label }
 
-let run ~ocaml_version ~distro o n config =
+let run_remote_diff ~ocaml_version ~distro o n config =
   let open! Term.Infix in
   Term.job_id >>= fun job_id ->
-  let t = {Opam_bulk_build_diff_key.ocaml_version; distro; o; n} in
+  let t = Opam_bulk_build_diff_key.(Remote {ocaml_version; distro; o; n}) in
+  Opam_bulk_build_diff_cache.find config job_id t
+
+let run_ocaml_version_diff (ocaml_version_a,ocaml_version_b) ~distro o n config =
+  let open! Term.Infix in
+  Term.job_id >>= fun job_id ->
+  let t = Opam_bulk_build_diff_key.(OCaml_version {ocaml_version_a; ocaml_version_b; distro; o; n}) in
   Opam_bulk_build_diff_cache.find config job_id t
 
 (*---------------------------------------------------------------------------

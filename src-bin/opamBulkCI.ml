@@ -41,7 +41,17 @@ module Builder = struct
        let main = main_t >>= Opam_bulk_build.run opam_bulk_t in
        let dev  = dev_t  >>= Opam_bulk_build.run opam_bulk_t in
        let prev = prev_t >>= Opam_bulk_build.run opam_bulk_t in
-       ["V2 Bulk 4.04", main; "V2 Bulk 4.05", dev; "V2 Bulk 4.03", prev]
+       let diff_ocaml_403_404 =
+         Term.without_logs prev_t >>= fun prev ->
+         Term.without_logs main_t >>= fun main ->
+         Opam_bulk_build_diff.run_ocaml_version_diff (prev_ocaml_version, ocaml_version) ~distro prev main opam_bulk_diff_t
+       in
+       let diff_ocaml_404_405 =
+         Term.without_logs main_t >>= fun main ->
+         Term.without_logs dev_t >>= fun dev ->
+         Opam_bulk_build_diff.run_ocaml_version_diff (ocaml_version, dev_ocaml_version) ~distro main dev opam_bulk_diff_t
+       in
+       ["V2 Bulk 4.04", main; "V2 Bulk 4.05", dev; "V2 Bulk 4.03", prev; "Results (4.03->4.04)", diff_ocaml_403_404; "Results (4.04->4.05)", diff_ocaml_404_405]
     |_ -> []
  
   let tests = [

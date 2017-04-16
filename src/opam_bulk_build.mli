@@ -27,6 +27,8 @@ val run : t -> keys -> string Term.t
 
 val diff : ocaml_version:string -> distro:string -> keys -> keys -> Format.formatter -> unit
 
+val diff_by_ocaml_version : (string * string) -> distro:string -> keys -> keys -> Format.formatter -> unit
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 

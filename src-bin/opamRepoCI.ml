@@ -77,7 +77,7 @@ module Builder = struct
        let diff =
          Term.without_logs main_t >>= fun main ->
          Term.without_logs mirage_t >>= fun mirage ->
-         Opam_bulk_build_diff.run ~ocaml_version ~distro main mirage opam_bulk_diff_t
+         Opam_bulk_build_diff.run_remote_diff ~ocaml_version ~distro main mirage opam_bulk_diff_t
        in
        let main = main_t >>= Opam_bulk_build.run opam_bulk_t in
        let mirage = mirage_t >>= Opam_bulk_build.run opam_bulk_t in

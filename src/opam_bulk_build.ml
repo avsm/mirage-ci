@@ -93,7 +93,49 @@ module K = struct
 end
 
 module P = Map.Make(String)
- 
+
+let diff_by_ocaml_version (ocaml_version_a, ocaml_version_b) ~distro a b ppf =
+  let a = List.filter (fun t -> t.ocaml_version = ocaml_version_a && t.distro = distro) a in
+  let b = List.filter (fun t -> t.ocaml_version = ocaml_version_b && t.distro = distro) b in
+  let pfnl () = Format.pp_print_newline ppf () in
+  let pold =
+    List.fold_left (fun m p ->
+      let name, version = K.split_name p.package in
+      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+      P.add name p m) P.empty a in
+  let pnew = 
+    List.fold_left (fun m p ->
+      let name, version = K.split_name p.package in
+      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+      P.add name p m) P.empty b in
+  P.iter (fun name p ->
+    match P.find name pnew with
+    |p' when K.compare p p' <> 0 -> begin
+      let _, v1 = K.split_name p.package in
+      let _, v2 = K.split_name p'.package in
+      match p.success, p'.success with
+      |true, false -> Fmt.pf ppf "%s (%s -> %s) fails as of ocaml %s" name v1 v2 ocaml_version_b; pfnl ()
+      |false, true -> Fmt.pf ppf "%s (%s -> %s) broken in ocaml %s and now builds in ocaml %s" name v1 v2 ocaml_version_a ocaml_version_b; pfnl ()
+      |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken in both ocaml %s and %s" name v1 v2 ocaml_version_a ocaml_version_b; pfnl ()
+      |true, true -> ()
+    end
+    |p' -> ()
+    |exception Not_found ->
+      let _, v1 = K.split_name p.package in
+      Fmt.pf ppf "%s (%s) is now uninstallable" name v1; pfnl ()
+  ) pold;
+  P.iter (fun name p ->
+   match P.find name pold with
+   |_ -> ()
+   |exception Not_found -> begin
+     let _, v1 = K.split_name p.package in
+     match p.success with
+     |false -> Fmt.pf ppf "%s (new %s) fails now in ocaml %s" name v1 ocaml_version_b; pfnl ()
+     |true -> ()
+   end
+  ) pnew
+
+
 let diff ~ocaml_version ~distro a b ppf =
   let a = List.filter (fun t -> t.ocaml_version = ocaml_version && t.distro = distro) a in
   let b = List.filter (fun t -> t.ocaml_version = ocaml_version && t.distro = distro) b in
@@ -134,7 +176,7 @@ let diff ~ocaml_version ~distro a b ppf =
      |true -> ()
    end
   ) pnew
- 
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2016-2017 Anil Madhavapeddy
 
