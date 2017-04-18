@@ -146,7 +146,18 @@ module V2 = struct
 
   let clone_src = V1.clone_src
   let add_local_pins = V1.add_local_pins
-  let add_ci_script = V1.add_ci_script
+
+  (* TODO support multiple args *)
+  let add_ci_script =
+    generate_sh "opam-ci-install" [
+      "if ! opam install $1 --dry-run; then";
+      "  echo Package unavailable, skipping.";
+      "  exit 0";
+      "fi";
+      "opam remote";
+      "opam list";
+      "opam depext -ui $1 || exit 1";
+      "env OPAMERRLOGLEN=0 opam install -yj2 $1 || exit 1" ]
 
   let switch_local_remote =
     run "opam admin upgrade" @@
