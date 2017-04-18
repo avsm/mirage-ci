@@ -26,7 +26,7 @@ module Builder = struct
     match Target.id target with
     |`Ref ["heads";"bulk"] ->
        let distro = "ubuntu-16.04" in
-       let ocaml_version_402 = "4.02.0" in
+       let ocaml_version_402 = "4.02.3" in
        let ocaml_version_403 = "4.03.0" in
        let ocaml_version_404 = "4.04.0" in
        let ocaml_version_405 = "4.05.0" in
