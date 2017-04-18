@@ -26,32 +26,42 @@ module Builder = struct
     match Target.id target with
     |`Ref ["heads";"bulk"] ->
        let distro = "ubuntu-16.04" in
-       let prev_ocaml_version = "4.03.0" in
-       let ocaml_version = "4.04.0" in
-       let dev_ocaml_version = "4.05.0" in
-       let prev_t = 
+       let ocaml_version_402 = "4.02.0" in
+       let ocaml_version_403 = "4.03.0" in
+       let ocaml_version_404 = "4.04.0" in
+       let ocaml_version_405 = "4.05.0" in
+       let b402_t = 
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
-         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:prev_ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
-       let main_t = 
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:ocaml_version_402 ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
+       let b403_t = 
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
-         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
-       let dev_t = 
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:ocaml_version_403 ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
+       let b404_t = 
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
-         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:dev_ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
-       let main = main_t >>= Opam_bulk_build.run opam_bulk_t in
-       let dev  = dev_t  >>= Opam_bulk_build.run opam_bulk_t in
-       let prev = prev_t >>= Opam_bulk_build.run opam_bulk_t in
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:ocaml_version_404 ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
+       let b405_t = 
+         let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
+         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:ocaml_version_405 ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
+       let v402 = b402_t >>= Opam_bulk_build.run opam_bulk_t in
+       let v403  = b403_t  >>= Opam_bulk_build.run opam_bulk_t in
+       let v404 = b404_t >>= Opam_bulk_build.run opam_bulk_t in
+       let v405 = b405_t >>= Opam_bulk_build.run opam_bulk_t in
+       let diff_ocaml_402_403 =
+         Term.without_logs b402_t >>= fun v402 ->
+         Term.without_logs b403_t >>= fun v403 ->
+         Opam_bulk_build_diff.run_ocaml_version_diff (ocaml_version_402, ocaml_version_403) ~distro v402 v403 opam_bulk_diff_t
+       in
        let diff_ocaml_403_404 =
-         Term.without_logs prev_t >>= fun prev ->
-         Term.without_logs main_t >>= fun main ->
-         Opam_bulk_build_diff.run_ocaml_version_diff (prev_ocaml_version, ocaml_version) ~distro prev main opam_bulk_diff_t
+         Term.without_logs b403_t >>= fun v403 ->
+         Term.without_logs b404_t >>= fun v404 ->
+         Opam_bulk_build_diff.run_ocaml_version_diff (ocaml_version_403, ocaml_version_404) ~distro v403 v404 opam_bulk_diff_t
        in
        let diff_ocaml_404_405 =
-         Term.without_logs main_t >>= fun main ->
-         Term.without_logs dev_t >>= fun dev ->
-         Opam_bulk_build_diff.run_ocaml_version_diff (ocaml_version, dev_ocaml_version) ~distro main dev opam_bulk_diff_t
+         Term.without_logs b404_t >>= fun v404 ->
+         Term.without_logs b405_t >>= fun v405 ->
+         Opam_bulk_build_diff.run_ocaml_version_diff (ocaml_version_404, ocaml_version_405) ~distro v404 v405 opam_bulk_diff_t
        in
-       ["V2 Bulk 4.04", main; "V2 Bulk 4.05", dev; "V2 Bulk 4.03", prev; "Results (4.03->4.04)", diff_ocaml_403_404; "Results (4.04->4.05)", diff_ocaml_404_405]
+       ["V2 Bulk 4.02", v402; "V2 Bulk 4.03", v403; "V2 Bulk 4.04", v404; "V2 Bulk 4.05", v405; "Results (4.02->4.03)", diff_ocaml_402_403; "Results (4.03->4.04)", diff_ocaml_403_404; "Results (4.04->4.05)", diff_ocaml_404_405]
     |_ -> []
  
   let tests = [
