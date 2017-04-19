@@ -43,9 +43,16 @@ module Builder = struct
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
          Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version:ocaml_version_405 ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
        let v402 = b402_t >>= Opam_bulk_build.run opam_bulk_t in
-       let v403  = b403_t  >>= Opam_bulk_build.run opam_bulk_t in
+       let v403 = b403_t >>= Opam_bulk_build.run opam_bulk_t in
        let v404 = b404_t >>= Opam_bulk_build.run opam_bulk_t in
        let v405 = b405_t >>= Opam_bulk_build.run opam_bulk_t in
+       let analyse =
+         Term.without_logs b402_t >>= fun v402 ->
+         Term.without_logs b403_t >>= fun v403 ->
+         Term.without_logs b404_t >>= fun v404 ->
+         Term.without_logs b405_t >>= fun v405 ->
+         Opam_bulk_build_diff.analyse_failures (v402@v403@v404@v405) opam_bulk_diff_t
+       in
        let diff_ocaml_402_403 =
          Term.without_logs b402_t >>= fun v402 ->
          Term.without_logs b403_t >>= fun v403 ->
@@ -61,7 +68,7 @@ module Builder = struct
          Term.without_logs b405_t >>= fun v405 ->
          Opam_bulk_build_diff.run_ocaml_version_diff (ocaml_version_404, ocaml_version_405) ~distro v404 v405 opam_bulk_diff_t
        in
-       ["V2 Bulk 4.02", v402; "V2 Bulk 4.03", v403; "V2 Bulk 4.04", v404; "V2 Bulk 4.05", v405; "Results (4.02->4.03)", diff_ocaml_402_403; "Results (4.03->4.04)", diff_ocaml_403_404; "Results (4.04->4.05)", diff_ocaml_404_405]
+       ["Analysis", analyse; "V2 Bulk 4.02", v402; "V2 Bulk 4.03", v403; "V2 Bulk 4.04", v404; "V2 Bulk 4.05", v405; "Results (4.02->4.03)", diff_ocaml_402_403; "Results (4.03->4.04)", diff_ocaml_403_404; "Results (4.04->4.05)", diff_ocaml_404_405]
     |_ -> []
  
   let tests = [

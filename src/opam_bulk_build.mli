@@ -11,7 +11,7 @@ type t
 (* [t] is the state of an Opam_bulk_build reporting instance *)
 
 type key = {
-  ocaml_version: string;
+  ocaml_version: Ocaml_version.t;
   distro: string;
   package: string;
   success: bool;
@@ -25,9 +25,11 @@ val v : label:string -> logs:Datakit_ci.Live_log.manager -> t
 
 val run : t -> keys -> string Term.t
 
-val diff : ocaml_version:string -> distro:string -> keys -> keys -> Format.formatter -> unit
+val diff : ocaml_version:Ocaml_version.t -> distro:string -> keys -> keys -> Format.formatter -> unit
 
-val diff_by_ocaml_version : (string * string) -> distro:string -> keys -> keys -> Format.formatter -> unit
+val diff_by_ocaml_version : (Ocaml_version.t * Ocaml_version.t) -> distro:string -> keys -> keys -> Format.formatter -> unit
+
+val analyse_failures : keys -> Format.formatter -> unit
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy

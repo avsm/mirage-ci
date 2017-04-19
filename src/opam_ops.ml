@@ -310,6 +310,7 @@ let bulk_build ?volume ~remotes ~ocaml_version
         (Term.state t >>= fun t ->
         let success = match t with Ok _ -> true |_ -> false in
         let open Opam_bulk_build in
+        let ocaml_version = Ocaml_version.of_string ocaml_version in
         let r = {ocaml_version;distro;package;success;log_branch} in
         fn tl (r::acc))
       |[] -> Term.return (List.rev acc)

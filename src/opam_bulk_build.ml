@@ -8,6 +8,8 @@ open Datakit_ci
 open! Astring
 open Lwt.Infix
 
+module OV = Ocaml_version
+
 let src = Logs.Src.create "datakit-ci.opam-bulk" ~doc:"Opam_bulk_build plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
@@ -15,7 +17,7 @@ let ( / ) = Datakit_path.Infix.( / )
 
 open Sexplib.Conv
 type key = {
-  ocaml_version: string;
+  ocaml_version: OV.t;
   distro: string;
   package: string;
   success: bool;
@@ -27,8 +29,8 @@ type keys = key list [@@deriving sexp]
 let compare = Pervasives.compare
 
 module Opam_bulk_build_key = struct
- type t = keys
- let compare = Pervasives.compare
+  type t = keys
+  let compare = Pervasives.compare
 end
 
 module Opam_bulk_builder = struct
@@ -62,7 +64,7 @@ module Opam_bulk_builder = struct
     DK.Tree.read_file tr (Datakit_path.of_string_exn "value/results.sexp") >>*= fun output ->
     Lwt.return (Cstruct.to_string output |> String.trim)
 end
- 
+
 module Opam_bulk_build_cache = Cache.Make(Opam_bulk_builder)
 
 type t = Opam_bulk_build_cache.t 
@@ -75,7 +77,7 @@ let run config results =
 
 module K = struct
   type t = key
-    let ( ++ ) x fn =
+  let ( ++ ) x fn =
     match x with
     | 0 -> fn ()
     | r -> r
@@ -87,12 +89,59 @@ module K = struct
 
   let compare a {ocaml_version;distro;package;success;log_branch} =
     compare ocaml_version a.ocaml_version ++ fun () ->
-    compare distro a.distro ++ fun () ->
-    compare package a.package ++ fun () ->
-    compare success a.success
+      compare distro a.distro ++ fun () ->
+        compare package a.package ++ fun () ->
+          compare success a.success
 end
 
 module P = Map.Make(String)
+
+(** Given a package buildset, figure out why a given package build failed
+    by looking at different OCaml versions and/or distros *)
+let analyse_failures b ppf =
+  (* Gather all the results for a given package in one map list *)
+  let m = List.fold_left (fun m p ->
+      let name, version = K.split_name p.package in
+      let v = try P.find name m with Not_found -> [] in
+      P.add name (p::v) m) P.empty b in
+  (* Iterate through the packages identifying any failures *)
+  P.iter (fun name r ->
+      (* Did all the installations succeed? *)
+      let succeeded =
+        List.fold_left (fun a b ->
+            match a,b.success with
+            | false,_ -> false | _,false -> false | _ -> true
+          ) true r in
+      if succeeded then
+        Fmt.(pf ppf "%s: ok (%a)" name
+          (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r))
+      else begin
+        (* Examine failures to figure out a root cause *)
+        let have_multiple_ocaml_versions =
+          List.fold_left (
+            fun a {ocaml_version} ->
+              if not (List.mem ocaml_version a) then ocaml_version::a else a) [] r
+          |> fun l -> List.length l > 0
+        in
+        if have_multiple_ocaml_versions && List.length r > 1 then begin
+          let l = List.sort (fun a {ocaml_version} -> OV.compare a.ocaml_version ocaml_version) r in
+          (* find a fail -> success edge *)
+          let rec fn = function
+            |a::b::tl -> begin
+             if a.ocaml_version <> b.ocaml_version then begin
+               match a.success, b.success with
+               |false,true ->
+                  Fmt.(pf ppf "%s: fixed after %a -> %a (%s -> %s)" name OV.pp a.ocaml_version OV.pp b.ocaml_version a.package b.package)
+               |true,false ->
+                  Fmt.(pf ppf "%s: fails after %a -> %a (%s -> %s)" name OV.pp a.ocaml_version OV.pp b.ocaml_version a.package b.package)
+               |_ -> ()
+             end else fn (b::tl)
+            end
+            |_ -> () in
+          fn l
+        end
+      end
+    ) m
 
 let diff_by_ocaml_version (ocaml_version_a, ocaml_version_b) ~distro a b ppf =
   let a = List.filter (fun t -> t.ocaml_version = ocaml_version_a && t.distro = distro) a in
@@ -100,40 +149,40 @@ let diff_by_ocaml_version (ocaml_version_a, ocaml_version_b) ~distro a b ppf =
   let pfnl () = Format.pp_print_newline ppf () in
   let pold =
     List.fold_left (fun m p ->
-      let name, version = K.split_name p.package in
-      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
-      P.add name p m) P.empty a in
+        let name, version = K.split_name p.package in
+        if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+        P.add name p m) P.empty a in
   let pnew = 
     List.fold_left (fun m p ->
-      let name, version = K.split_name p.package in
-      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
-      P.add name p m) P.empty b in
+        let name, version = K.split_name p.package in
+        if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+        P.add name p m) P.empty b in
   P.iter (fun name p ->
-    match P.find name pnew with
-    |p' when K.compare p p' <> 0 -> begin
-      let _, v1 = K.split_name p.package in
-      let _, v2 = K.split_name p'.package in
-      match p.success, p'.success with
-      |true, false -> Fmt.pf ppf "%s (%s -> %s) fails as of ocaml %s" name v1 v2 ocaml_version_b; pfnl ()
-      |false, true -> Fmt.pf ppf "%s (%s -> %s) broken in ocaml %s and now builds in ocaml %s" name v1 v2 ocaml_version_a ocaml_version_b; pfnl ()
-      |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken in both ocaml %s and %s" name v1 v2 ocaml_version_a ocaml_version_b; pfnl ()
-      |true, true -> ()
-    end
-    |p' -> ()
-    |exception Not_found ->
-      let _, v1 = K.split_name p.package in
-      Fmt.pf ppf "%s (%s) is now uninstallable" name v1; pfnl ()
-  ) pold;
+      match P.find name pnew with
+      |p' when K.compare p p' <> 0 -> begin
+          let _, v1 = K.split_name p.package in
+          let _, v2 = K.split_name p'.package in
+          match p.success, p'.success with
+          |true, false -> Fmt.pf ppf "%s (%s -> %s) fails as of ocaml %a" name v1 v2 OV.pp ocaml_version_b; pfnl ()
+          |false, true -> Fmt.pf ppf "%s (%s -> %s) broken in ocaml %a and now builds in ocaml %a" name v1 v2 OV.pp ocaml_version_a OV.pp ocaml_version_b; pfnl ()
+          |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken in both ocaml %a and %a" name v1 v2 OV.pp ocaml_version_a OV.pp ocaml_version_b; pfnl ()
+          |true, true -> ()
+        end
+      |p' -> ()
+      |exception Not_found ->
+          let _, v1 = K.split_name p.package in
+          Fmt.pf ppf "%s (%s) is now uninstallable" name v1; pfnl ()
+    ) pold;
   P.iter (fun name p ->
-   match P.find name pold with
-   |_ -> ()
-   |exception Not_found -> begin
-     let _, v1 = K.split_name p.package in
-     match p.success with
-     |false -> Fmt.pf ppf "%s (new %s) fails now in ocaml %s" name v1 ocaml_version_b; pfnl ()
-     |true -> ()
-   end
-  ) pnew
+      match P.find name pold with
+      |_ -> ()
+      |exception Not_found -> begin
+          let _, v1 = K.split_name p.package in
+          match p.success with
+          |false -> Fmt.pf ppf "%s (new %s) fails now in ocaml %a" name v1 OV.pp ocaml_version_b; pfnl ()
+          |true -> ()
+        end
+    ) pnew
 
 
 let diff ~ocaml_version ~distro a b ppf =
@@ -142,40 +191,40 @@ let diff ~ocaml_version ~distro a b ppf =
   let pfnl () = Format.pp_print_newline ppf () in
   let pold =
     List.fold_left (fun m p ->
-      let name, version = K.split_name p.package in
-      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
-      P.add name p m) P.empty a in
+        let name, version = K.split_name p.package in
+        if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+        P.add name p m) P.empty a in
   let pnew = 
     List.fold_left (fun m p ->
-      let name, version = K.split_name p.package in
-      if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
-      P.add name p m) P.empty b in
+        let name, version = K.split_name p.package in
+        if P.mem name m then failwith (Fmt.strf "duplicate package %s" p.package);
+        P.add name p m) P.empty b in
   P.iter (fun name p ->
-    match P.find name pnew with
-    |p' when K.compare p p' <> 0 -> begin
-      let _, v1 = K.split_name p.package in
-      let _, v2 = K.split_name p'.package in
-      match p.success, p'.success with
-      |true, false -> Fmt.pf ppf "%s (%s -> %s) fails now" name v1 v2; pfnl ()
-      |false, true -> Fmt.pf ppf "%s (%s -> %s) broken before and now builds" name v1 v2; pfnl ()
-      |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken" name v1 v2; pfnl ()
-      |true, true -> ()
-    end
-    |p' -> ()
-    |exception Not_found ->
-      let _, v1 = K.split_name p.package in
-      Fmt.pf ppf "%s (%s) is now uninstallable" name v1; pfnl ()
-  ) pold;
+      match P.find name pnew with
+      |p' when K.compare p p' <> 0 -> begin
+          let _, v1 = K.split_name p.package in
+          let _, v2 = K.split_name p'.package in
+          match p.success, p'.success with
+          |true, false -> Fmt.pf ppf "%s (%s -> %s) fails now" name v1 v2; pfnl ()
+          |false, true -> Fmt.pf ppf "%s (%s -> %s) broken before and now builds" name v1 v2; pfnl ()
+          |false, false -> Fmt.pf ppf "%s (%s -> %s) still broken" name v1 v2; pfnl ()
+          |true, true -> ()
+        end
+      |p' -> ()
+      |exception Not_found ->
+          let _, v1 = K.split_name p.package in
+          Fmt.pf ppf "%s (%s) is now uninstallable" name v1; pfnl ()
+    ) pold;
   P.iter (fun name p ->
-   match P.find name pold with
-   |_ -> ()
-   |exception Not_found -> begin
-     let _, v1 = K.split_name p.package in
-     match p.success with
-     |false -> Fmt.pf ppf "%s (new %s) fails now" name v1; pfnl ()
-     |true -> ()
-   end
-  ) pnew
+      match P.find name pold with
+      |_ -> ()
+      |exception Not_found -> begin
+          let _, v1 = K.split_name p.package in
+          match p.success with
+          |false -> Fmt.pf ppf "%s (new %s) fails now" name v1; pfnl ()
+          |true -> ()
+        end
+    ) pnew
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016-2017 Anil Madhavapeddy
