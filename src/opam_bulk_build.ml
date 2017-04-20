@@ -109,17 +109,26 @@ let analyse_failures b ppf =
   P.iter (fun name r ->
       Fmt.(pf ppf "%s: " name);
       (* Did all the installations succeed? *)
-      let succeeded =
+      let all_succeeded =
         List.fold_left (fun a b ->
             match a,b.success with
             | false,_ -> false | _,false -> false | _ -> true
           ) true r in
-      if succeeded then begin
-        Fmt.(pf ppf "ok (%a)"
+      let all_failed =
+        List.fold_left (fun a b ->
+            match a,b.success with
+            | true,_ -> false | _,true -> true | _ -> false
+          ) false r in
+      if all_succeeded then begin
+        Fmt.(pf ppf "%a (%a)" (styled `Green string) "ok"
+          (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
+        pfnl ()
+      end else if all_failed then begin
+        Fmt.(pf ppf "%a (%a)" (styled `Red string) "fail"
           (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
         pfnl ()
       end else begin
-        Fmt.(pf ppf "failed (%a) :" 
+        Fmt.(pf ppf "%a (%a) :" (styled `Yellow string) "partial"
           (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
         (* Examine failures to figure out a root cause *)
         let have_multiple_ocaml_versions =
@@ -128,7 +137,6 @@ let analyse_failures b ppf =
               if not (List.mem ocaml_version a) then ocaml_version::a else a) [] r
           |> fun l -> List.length l > 0
         in
-        Fmt.(pf ppf "multiple ocaml: %b " have_multiple_ocaml_versions);
         if have_multiple_ocaml_versions && List.length r > 1 then begin
           let l = List.sort (fun a {ocaml_version} -> OV.compare a.ocaml_version ocaml_version) r in
           (* find a fail -> success edge *)
