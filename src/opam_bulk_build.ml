@@ -99,6 +99,7 @@ module P = Map.Make(String)
 (** Given a package buildset, figure out why a given package build failed
     by looking at different OCaml versions and/or distros *)
 let analyse_failures b ppf =
+  let pfnl () = Format.pp_print_newline ppf () in
   (* Gather all the results for a given package in one map list *)
   let m = List.fold_left (fun m p ->
       let name, version = K.split_name p.package in
@@ -106,16 +107,20 @@ let analyse_failures b ppf =
       P.add name (p::v) m) P.empty b in
   (* Iterate through the packages identifying any failures *)
   P.iter (fun name r ->
+      Fmt.(pf ppf "%s: " name);
       (* Did all the installations succeed? *)
       let succeeded =
         List.fold_left (fun a b ->
             match a,b.success with
             | false,_ -> false | _,false -> false | _ -> true
           ) true r in
-      if succeeded then
-        Fmt.(pf ppf "%s: ok (%a)" name
-          (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r))
-      else begin
+      if succeeded then begin
+        Fmt.(pf ppf "ok (%a)"
+          (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
+        pfnl ()
+      end else begin
+        Fmt.(pf ppf "failed (%a) :" 
+          (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
         (* Examine failures to figure out a root cause *)
         let have_multiple_ocaml_versions =
           List.fold_left (
@@ -123,6 +128,7 @@ let analyse_failures b ppf =
               if not (List.mem ocaml_version a) then ocaml_version::a else a) [] r
           |> fun l -> List.length l > 0
         in
+        Fmt.(pf ppf "multiple ocaml: %b " have_multiple_ocaml_versions);
         if have_multiple_ocaml_versions && List.length r > 1 then begin
           let l = List.sort (fun a {ocaml_version} -> OV.compare a.ocaml_version ocaml_version) r in
           (* find a fail -> success edge *)
@@ -139,7 +145,8 @@ let analyse_failures b ppf =
             end
             |_ -> () in
           fn l
-        end
+        end;
+        pfnl ()
       end
     ) m
 
