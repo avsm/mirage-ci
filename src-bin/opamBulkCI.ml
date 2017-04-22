@@ -87,6 +87,7 @@ let web_config =
     ()
 
 let () =
+  Fmt_tty.setup_std_outputs ();
   run (Cmdliner.Term.pure (Config.v ~web_config ~projects:Builder.tests))
 
 (*---------------------------------------------------------------------------

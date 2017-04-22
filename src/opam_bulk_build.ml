@@ -119,17 +119,12 @@ let analyse_failures b ppf =
             match a,b.success with
             | true,_ -> false | _,true -> true | _ -> false
           ) false r in
-      if all_succeeded then begin
-        Fmt.(pf ppf "%a (%a)" (styled `Green string) "ok"
-          (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
-        pfnl ()
-      end else if all_failed then begin
+      if all_failed then begin
         Fmt.(pf ppf "%a (%a)" (styled `Red string) "fail"
           (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
         pfnl ()
       end else begin
-        Fmt.(pf ppf "%a (%a) :" (styled `Yellow string) "partial"
-          (list ~sep:(const string ", ") string) (List.map (fun {package} -> package) r));
+        Fmt.(pf ppf "%a " (styled `Yellow string) "partial");
         (* Examine failures to figure out a root cause *)
         let have_multiple_ocaml_versions =
           List.fold_left (

@@ -4,10 +4,10 @@ let v ?patch ?extra major minor = { major; minor; patch; extra }
 
 let to_string =
   function
-  | {major;minor;patch=None;extra=None} -> Printf.sprintf "%d.%d" major minor
-  | {major;minor;patch=Some patch;extra=None} -> Printf.sprintf "%d.%d.%d" major minor patch
-  | {major;minor;patch=Some patch;extra=Some extra} -> Printf.sprintf "%d.%d.%d+%s" major minor patch extra
-  | {major;minor;patch=None;extra=Some extra} -> Printf.sprintf "%d.%d+%s" major minor extra
+  | {major;minor;patch=None;extra=None} -> Printf.sprintf "%d.%02d" major minor
+  | {major;minor;patch=Some patch;extra=None} -> Printf.sprintf "%d.%02d.%d" major minor patch
+  | {major;minor;patch=Some patch;extra=Some extra} -> Printf.sprintf "%d.%02d.%d+%s" major minor patch extra
+  | {major;minor;patch=None;extra=Some extra} -> Printf.sprintf "%d.%02d+%s" major minor extra
 
 let parse s =
   try Scanf.sscanf s "%d.%d.%d+%s" (fun major minor patch extra -> v ~patch ~extra major minor)
