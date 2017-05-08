@@ -1,0 +1,12 @@
+(executables 
+ ((names (opamBulkCI opamRepoCI))
+  (libraries (mirage-ci dockerfile))
+  (flags (:standard -short-paths)) 
+ ))
+
+(install
+ ((section bin)
+  (files (
+   (opamBulkCI.exe as opam-bulk-ci)
+   (opamRepoCI.exe as opam-repo-ci)
+  ))))

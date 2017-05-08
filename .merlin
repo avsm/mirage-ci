@@ -1,6 +1,0 @@
-PKG bytes
-PKG dockerfile
-PKG datakit-ci
-S src
-S test
-B _build/**

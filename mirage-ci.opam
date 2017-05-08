@@ -7,7 +7,7 @@ license: "ISC"
 dev-repo: "https://github.com/avsm/mirage-ci.git"
 bug-reports: "https://github.com/avsm/mirage-ci/issues"
 tags: [ "org:mirage" "org:ocamlabs"]
-available: [ ocaml-version >= "4.02.3"]
+available: [ ocaml-version >= "4.03.0"]
 depends: [
   "ocamlfind" {build}
   "ocamlbuild" {build}
@@ -15,16 +15,13 @@ depends: [
   "ppx_sexp_conv" {build}
   "dockerfile" {>="1.7.0"}
   "datakit-ci"
-  "toml"
   "fpath"
   "asetmap"
   "bos"
   "cmdliner"
   "rresult"
   "sexplib"
-  "tls"
   "ptime"
-  "irmin-unix" { <"1.0" }
 ]
 depopts: []
 build: [ "ocaml" "pkg/pkg.ml" "build" "--pinned" pinned "--tests" "false" ]

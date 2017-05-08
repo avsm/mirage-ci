@@ -1,7 +1,0 @@
-description = "Continuous Integration for MirageOS"
-version = "%%VERSION%%"
-requires = "dockerfile.opam datakit-ci"
-archive(byte) = "mirage-ci.cma"
-archive(native) = "mirage-ci.cmxa"
-plugin(byte) = "mirage-ci.cma"
-plugin(native) = "mirage-ci.cmxs"
