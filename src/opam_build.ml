@@ -122,7 +122,7 @@ module Opam_builder = struct
       run "opam update -uy"
     in
     let open Utils.Infix in
-    let open Datakit_path.Infix in
+    let open Datakit_client.Path.Infix in
     let output = Live_log.write log in
     Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list ~sep:sp string)) packages distro ocaml_version;
     let data = Dockerfile_conv.to_cstruct dockerfile in
@@ -147,7 +147,7 @@ module Opam_builder = struct
 
   let load _t tr _k =
     let open Utils.Infix in
-    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/Dockerfile.sexp") >>*= fun data ->
+    DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/Dockerfile.sexp") >>*= fun data ->
     Lwt.return (Dockerfile_conv.of_cstruct data)
 
 end

@@ -8,7 +8,7 @@ open! Astring
 open Lwt.Infix
 open Datakit_ci
 
-let ( / ) = Datakit_path.Infix.( / )
+let ( / ) = Datakit_client.Path.Infix.( / )
 
 let src = Logs.Src.create "datakit-ci.docker-build" ~doc:"Docker plugin for DataKitCI"
 module Log = (val Logs.src_log src : Logs.LOG)
@@ -100,9 +100,9 @@ module Docker_builder = struct
 
   let load _t tr _key =
     let open Utils.Infix in
-    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/sha256") >>*= fun sha256 ->
-    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/tag") >>*= fun tag ->
-    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/label") >>*= fun hum ->
+    DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/sha256") >>*= fun sha256 ->
+    DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/tag") >>*= fun tag ->
+    DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/label") >>*= fun hum ->
     let tag = match Cstruct.to_string tag with | "" -> None | x -> Some (String.trim x) in
     let sha256 = String.trim (Cstruct.to_string sha256) in
     let cmd = Printf.sprintf "docker inspect %s" sha256 in

@@ -1,9 +1,4 @@
 _build
 .*.swp
-tmp
-*~
-\.\#*
-\#*#
+.merlin
 *.install
-*.native
-*.byte

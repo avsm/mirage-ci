@@ -1,7 +1,6 @@
 B ../_build/default/src
 B ../_build/default/src-bin
 FLG -w -40 -short-paths
-PKG ISO8601
 PKG asetmap
 PKG asn1-combinators
 PKG astring
@@ -24,14 +23,14 @@ PKG conduit
 PKG conduit.lwt
 PKG conduit.lwt-unix
 PKG cstruct
-PKG cstruct-lwt
 PKG cstruct.lwt
 PKG datakit-ci
 PKG datakit-client
+PKG datakit-client-9p
 PKG datakit-github
 PKG dispatch
 PKG dockerfile
-PKG dockerfile.opam
+PKG dockerfile-opam
 PKG easy-format
 PKG fieldslib
 PKG fmt
@@ -78,7 +77,7 @@ PKG re.emacs
 PKG re.posix
 PKG re.str
 PKG redis
-PKG redis.lwt
+PKG redis-lwt
 PKG result
 PKG rresult
 PKG session
@@ -91,7 +90,6 @@ PKG str
 PKG stringext
 PKG tls
 PKG tls.lwt
-PKG toml
 PKG tyxml
 PKG tyxml.functor
 PKG uchar
@@ -104,4 +102,4 @@ PKG webmachine
 PKG x509
 PKG yojson
 PKG zarith
-S .
+S ../src

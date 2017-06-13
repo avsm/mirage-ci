@@ -13,7 +13,7 @@ module OV = Ocaml_version
 let src = Logs.Src.create "datakit-ci.opam-bulk-diff" ~doc:"Opam_bulk_build diff plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
-let ( / ) = Datakit_path.Infix.( / )
+let ( / ) = Datakit_client.Path.Infix.( / )
 
 module Opam_bulk_build_diff_key = struct
  open Opam_bulk_build
@@ -82,7 +82,7 @@ module Opam_bulk_builder_diff = struct
 
   let load _t tr _key =
     let open Utils.Infix in
-    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/results.txt") >>*= fun output ->
+    DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/results.txt") >>*= fun output ->
     Lwt.return (Cstruct.to_string output |> String.trim)
 end
  

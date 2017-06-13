@@ -9,12 +9,11 @@ bug-reports: "https://github.com/avsm/mirage-ci/issues"
 tags: [ "org:mirage" "org:ocamlabs"]
 available: [ ocaml-version >= "4.03.0"]
 depends: [
-  "ocamlfind" {build}
-  "ocamlbuild" {build}
-  "topkg" {build}
+  "jbuilder" {build & >="1.0+beta9"}
   "ppx_sexp_conv" {build}
-  "dockerfile" {>="1.7.0"}
+  "dockerfile-opam"
   "datakit-ci"
+  "datakit-client" {>="0.11.0"}
   "fpath"
   "asetmap"
   "bos"

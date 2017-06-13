@@ -9,7 +9,7 @@ open Lwt.Infix
 open Datakit_ci
 module DB = Docker_build
 
-let ( / ) = Datakit_path.Infix.( / )
+let ( / ) = Datakit_client.Path.Infix.( / )
 
 let src = Logs.Src.create "datakit-ci.docker-pull" ~doc:"Docker pull plugin for DataKitCI"
 module Log = (val Logs.src_log src : Logs.LOG)
@@ -77,7 +77,7 @@ module Docker_puller = struct
 
   let load _t tr {slug; tag; _ }  =
     let open Utils.Infix in
-    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/sha256s") >>*= fun sha256s ->
+    DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/sha256s") >>*= fun sha256s ->
     let sha256s = Cstruct.to_string sha256s |> String.cuts ~empty:false ~sep:"\n" in
     match imgs_of_sha256s slug tag sha256s with
     | img :: _ -> Lwt.return img

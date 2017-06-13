@@ -11,7 +11,7 @@ open Lwt.Infix
 let src = Logs.Src.create "datakit-ci.docker-run" ~doc:"Docker_run plugin for Datakit_ci"
 module Log = (val Logs.src_log src : Logs.LOG)
 
-let ( / ) = Datakit_path.Infix.( / )
+let ( / ) = Datakit_client.Path.Infix.( / )
 
 type key = {
   img: string;
@@ -67,7 +67,7 @@ module Docker_runner = struct
 
   let load _t tr _key =
     let open Utils.Infix in
-    DK.Tree.read_file tr (Datakit_path.of_string_exn "value/output") >>*= fun output ->
+    DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/output") >>*= fun output ->
     Lwt.return (Cstruct.to_string output)
 end
  
