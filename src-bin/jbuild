@@ -1,5 +1,5 @@
 (executables 
- ((names (opamBulkCI opamRepoCI opamImageCI))
+ ((names (opamBulkCI opamRepoCI))
   (libraries (mirage-ci dockerfile))
   (flags (:standard -short-paths)) 
  ))
