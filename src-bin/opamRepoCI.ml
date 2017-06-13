@@ -24,10 +24,8 @@ module Builder = struct
 
   let packages_of_repo {Repo.user;repo} =
     match user, repo with
-    | "ocaml","opam-repository" -> ["lwt";"async";"coq";"mirage";"datakit"]
-    | "janestreet","opam-repository" -> ["async";"async_ssl";"jenga";"jane-street-tests"]
-    | "mirage","mirage-dev" -> ["mirage.dev~mirage";"mirage-types";"mirage-types-lwt";"irmin"]
-    | "mirage","mirageos-3-beta" -> ["arp";"charrua-client";"conduit";"dns";"fat-filesystem";"functoria";"logs-syslog";"mirage-types-lwt";"mirage-solo5";"tls";"vchan";"mirage-xen";"mirage-vnetif";"mirage-unix";"tar-format"]
+    | "ocaml","opam-repository" -> ["lwt";"async";"mirage";"datakit"]
+    | "janestreet","opam-repository" -> ["jane-street-tests"]
     | _ -> ["ocamlfind"]
 
   let repo_builder ~revdeps ~typ ~opam_version ?volume target =
@@ -66,7 +64,7 @@ module Builder = struct
     match Target.id target with
     |`Ref ["heads";"bulk"] ->
        let distro = "ubuntu-16.04" in
-       let ocaml_version = "4.03.0" in
+       let ocaml_version = "4.04.1" in
        let main_t = 
          let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
          Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
