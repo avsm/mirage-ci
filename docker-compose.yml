@@ -5,7 +5,7 @@ services:
   ci:
     restart: always
     build: .
-    entrypoint: /home/opam/.opam/system/bin/${CI_BINARY}
+    entrypoint: /home/opam/.opam/4.04.1/bin/${CI_BINARY}
     command: --metadata-store tcp:datakit:5640 --web-ui=https://${CI_DOMAIN_NAME}/ --sessions-backend=redis://redis
     ports:
      - "443:8443"
@@ -18,7 +18,7 @@ services:
      - redis
   datakit:
     restart: always
-    image: docker/datakit
+    image: datakit/db
     user: "root"
     volumes:
       - ./data/datakit/data:/data
@@ -26,7 +26,7 @@ services:
     command: --git /data --listen-9p tcp://0.0.0.0:5640
   bridge:
     restart: always
-    image: docker/datakit:github
+    image: datakit:github-bridge
     command: --datakit tcp://datakit:5640 --no-listen -v -c "*:r,status[ci/datakit]:x,webhook:rw" --webhook http://${CI_DOMAIN_NAME}:8100
     ports:
      - "8100:8100"
