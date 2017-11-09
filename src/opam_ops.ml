@@ -225,8 +225,8 @@ let distro_base ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ver
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df
 
-let primary_ocaml_version = "4.03.0"
-let compiler_variants = ["4.02.3";"4.04.0";"4.04.0_flambda"]
+let primary_ocaml_version = "4.04.2"
+let compiler_variants = ["4.02.3";"4.03.0";"4.04.2_flambda";"4.05.0";"4.05.0_flambda";"4.06.0"]
 
 let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
@@ -259,29 +259,29 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
       Term_utils.after phase1 >>= fun () ->
       Term.wait_for_all compiler_versions in
     (* phase 4 *)
-    let alpine35 = build "alpine-3.5" primary_ocaml_version in
+    let alpine36 = build "alpine-3.6" primary_ocaml_version in
     let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
-    let ubuntu1610 = build "ubuntu-16.10" primary_ocaml_version in
+    let ubuntu1704 = build "ubuntu-17.04" primary_ocaml_version in
     let centos7 = build "centos-7" primary_ocaml_version in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       Term.wait_for_all [
-        "Alpine 3.5", alpine35;
-        "Ubuntu 16.10", ubuntu1610;
+        "Alpine 3.6", alpine36;
+        "Ubuntu 17.04", ubuntu1704;
         "Ubuntu 16.04", ubuntu1604;
         "CentOS7", centos7 ] in
     (* phase 5 *)
     let debiant = build "debian-testing" primary_ocaml_version in
     let debianu = build "debian-unstable" primary_ocaml_version in
     let opensuse = build "opensuse-42.2" primary_ocaml_version in
-    let fedora24 = build "fedora-24" primary_ocaml_version in
+    let fedora25 = build "fedora-25" primary_ocaml_version in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->
       Term.wait_for_all [
         "Debian Testing", debiant;
         "Debian Unstable", debianu;
-        "OpenSUSE 42.2", opensuse;
-        "Fedora 24", fedora24 ]
+(*        "OpenSUSE 42.2", opensuse; *)
+        "Fedora 25", fedora25 ]
     in
     let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
     [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;
