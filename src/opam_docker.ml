@@ -106,10 +106,12 @@ module V1 = struct
   (* TODO support multiple args *)
   let add_ci_script =
     generate_sh "opam-ci-install" [
+(*
       "if ! opam install $1 --dry-run; then";
       "  echo Package unavailable, skipping.";
       "  exit 0";
       "fi";
+*)
       "opam remote";
       "opam list";
       "echo opam depext -uivyj 2 $1";
@@ -150,13 +152,15 @@ module V2 = struct
   (* TODO support multiple args *)
   let add_ci_script =
     generate_sh "opam-ci-install" [
+(*
       "if ! opam install $1 --dry-run; then";
       "  echo Package unavailable, skipping.";
       "  exit 0";
       "fi";
+*)
       "opam remote";
       "opam list";
-      "opam depext -ui $1 || exit 1";
+      "opam depext -u $1 || exit 1";
       "env OPAMERRLOGLEN=0 opam install -yj2 $1 || exit 1" ]
 
   let switch_local_remote =
@@ -180,7 +184,9 @@ module V2 = struct
 
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev" @@
-    add_cache_dir
+    add_cache_dir @@
+    run "opam pin add -n depext https://github.com/AltGr/opam-depext.git#opam-2-beta4" @@
+    run "opam install -y depext"
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [

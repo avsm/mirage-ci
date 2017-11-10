@@ -5,7 +5,7 @@ services:
   ci:
     restart: always
     build: .
-    entrypoint: /home/opam/.opam/4.04.2/bin/${CI_BINARY}
+    entrypoint: /home/opam/.opam/4.05.0/bin/${CI_BINARY}
     command: --metadata-store tcp:datakit:5640 --web-ui=https://${CI_DOMAIN_NAME}/ --sessions-backend=redis://redis
     ports:
      - "443:8443"

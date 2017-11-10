@@ -225,8 +225,8 @@ let distro_base ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ver
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df
 
-let primary_ocaml_version = "4.04.2"
-let compiler_variants = ["4.02.3";"4.03.0";"4.04.2_flambda";"4.05.0";"4.05.0_flambda";"4.06.0"]
+let primary_ocaml_version = "4.05.0"
+let compiler_variants = ["4.02.3";"4.03.0";"4.04.2";"4.05.0";"4.05.0_flambda";"4.06.0";"4.06.0_flambda"]
 
 let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
