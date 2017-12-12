@@ -17,7 +17,7 @@ module type V = sig
   val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
   val list_all_packages : Docker_ops.t -> Docker_build.image -> string list t
   val list_revdeps : Docker_ops.t -> Docker_build.image -> string -> string list t
-  val run_revdeps: ?volume:Fpath.t -> Docker_ops.t -> string list -> Docker_build.image -> unit t
+  val run_revdeps: ?volume:Fpath.t -> Docker_ops.t -> string -> Docker_build.image -> unit t
 end
 
 open Docker_ops
@@ -74,17 +74,10 @@ module V1 = struct
     Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) >>= fun () ->
     Term.return r
 
-  let run_revdeps ?volume ({run_t;_} as t) packages image =
-    let l = Fmt.strf "revdeps:%s" (String.concat ~sep:", " packages) in
+  let run_revdeps ?volume ({run_t;_} as t) pkg image =
+    let l = Fmt.strf "revdeps:%s" pkg in
     let terms =
-      List.fold_left
-        (fun acc pkg ->
-           acc >>= fun acc ->
-           list_revdeps t image pkg >|= fun pkgs ->
-           String.Set.union (String.Set.of_list pkgs) acc)
-        (Term.return String.Set.empty)
-        packages >|=
-      String.Set.elements >>=
+      list_revdeps t image pkg >>=
       run_packages ?volume run_t image
     in
     Term.wait_for_all [(l, terms)]
@@ -148,17 +141,10 @@ module V2 = struct
     String.cuts ~empty:false ~sep:"\n" >|=
     List.map (fun s -> String.trim s)
 
-  let run_revdeps ?volume ({run_t;_} as t) packages image =
-    let l = Fmt.strf "revdeps:%s" (String.concat ~sep:", " packages) in
+  let run_revdeps ?volume ({run_t;_} as t) pkg image =
+    let l = Fmt.strf "revdeps:%s" pkg in
     let terms =
-      List.fold_left
-        (fun acc pkg ->
-           acc >>= fun acc ->
-           list_revdeps t image pkg >|= fun pkgs ->
-           String.Set.union (String.Set.of_list pkgs) acc)
-        (Term.return String.Set.empty)
-        packages >|=
-      String.Set.elements >>=
+      list_revdeps t image pkg >>=
       run_packages ?volume run_t image
     in
     Term.wait_for_all [(l, terms)]
@@ -216,10 +202,10 @@ let packages_from_diff ?(default=["ocamlfind"]) {build_t;run_t;_} target =
     Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
-let run_revdeps ?volume ~opam_version docker_t packages img =
+let run_revdeps ?volume ~opam_version docker_t pkg img =
   match opam_version with
-  |`V1 -> V1.run_revdeps ?volume docker_t packages img
-  |`V2 -> V2.run_revdeps ?volume docker_t packages img
+  |`V1 -> V1.run_revdeps ?volume docker_t pkg img
+  |`V2 -> V2.run_revdeps ?volume docker_t pkg img
 
 let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t =
   (* Get the commits for the mainline opam repo *)
@@ -255,8 +241,7 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     debian_stable >>= fun debian_stable ->
     let ts = List.map (fun (l,img) ->
       let t =
-        packages >>= fun packages ->
-        run_revdeps ?volume ~opam_version docker_t packages img in
+        run_revdeps ?volume ~opam_version docker_t l img in
       (Fmt.strf "revdep:%s" l), t
     ) debian_stable in
     Term.wait_for_all ts in
