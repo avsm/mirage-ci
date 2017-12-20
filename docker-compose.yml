@@ -31,7 +31,7 @@ services:
     ports:
      - "8100:8100"
     volumes:
-      - ./data/bridge/_github/jar/datakit:/run/secrets/datakit-github-cookie
+      - ./data/bridge:/run/secrets
     depends_on:
      - datakit
   redis:
