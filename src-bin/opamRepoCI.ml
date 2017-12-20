@@ -15,7 +15,7 @@ module Builder = struct
   open Term.Infix
 
   let label = "opamRepo"
-  let docker_t = DO.v ~logs ~label ~jobs:24 ()
+  let docker_t = DO.v ~logs ~label ~jobs:32 ()
   let opam_t = Opam_build.v ~logs ~label
   let opam_bulk_t = Opam_bulk_build.v ~label ~logs
   let opam_bulk_diff_t = Opam_bulk_build_diff.v ~label ~logs
@@ -60,36 +60,8 @@ module Builder = struct
     |`Ref _  -> []
     |`PR _ -> tests ~revdeps:true
 
-  let run_bulk typ target =
-    match Target.id target with
-    |`Ref ["heads";"bulk"] ->
-       let distro = "ubuntu-16.04" in
-       let ocaml_version = "4.04.1" in
-       let main_t = 
-         let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
-         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[] ~ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
-       let mirage_t = 
-         let opam_repo = Opam_docker.repo ~user:"mirage" ~repo:"opam-repository" ~branch:"bulk" in
-         let mirage_dev_repo = Opam_docker.repo ~user:"mirage" ~repo:"mirage-dev" ~branch:"master" in
-         Opam_ops.bulk_build ~volume:volume_v2 ~remotes:[mirage_dev_repo] ~ocaml_version ~distro ~opam_version:`V2 ~opam_repo opam_t docker_t target in
-       let diff =
-         Term.without_logs main_t >>= fun main ->
-         Term.without_logs mirage_t >>= fun mirage ->
-         Opam_bulk_build_diff.run_remote_diff ~ocaml_version ~distro main mirage opam_bulk_diff_t
-       in
-       let main = main_t >>= Opam_bulk_build.run opam_bulk_t in
-       let mirage = mirage_t >>= Opam_bulk_build.run opam_bulk_t in
-       ["V2 Bulk", main; "V2 Bulk-Mirage-Dev", mirage; "Results", diff]
-    |_ -> []
- 
   let tests = [
     Config.project ~id:"ocaml/opam-repository" (run_phases `Full_repo);
-    Config.project ~id:"janestreet/opam-repository" (run_phases `Repo);
-(*
-    Config.project ~id:"mirage/mirageos-3-beta" (run_phases `Repo);
-    Config.project ~id:"mirage/opam-repository" (run_bulk `Full_repo);
-    Config.project ~id:"mirage/mirage-dev" (run_phases `Repo);
-*)
   ]
 end
 
