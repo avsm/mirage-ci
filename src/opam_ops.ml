@@ -76,13 +76,19 @@ module V1 = struct
     Term.return r
 
   let run_revdeps ?volume ({run_t;_} as t) packages image =
-    List.map (fun pkg ->
-      let terms =
-        list_revdeps t image pkg >>=
-        run_packages ?volume run_t image in
-      let l = Fmt.strf "revdeps:%s" pkg in
-      l, terms) packages |>
-    Term.wait_for_all
+    let l = Fmt.strf "revdeps:%s" (String.concat ~sep:", " packages) in
+    let terms =
+      List.fold_left
+        (fun acc pkg ->
+           acc >>= fun acc ->
+           list_revdeps t image pkg >|= fun pkgs ->
+           String.Set.union (String.Set.of_list pkgs) acc)
+        (Term.return String.Set.empty)
+        packages >|=
+      String.Set.elements >>=
+      run_packages ?volume run_t image
+    in
+    Term.wait_for_all [(l, terms)]
 
 end
 
@@ -145,13 +151,19 @@ module V2 = struct
     List.map (fun s -> String.trim s)
 
   let run_revdeps ?volume ({run_t;_} as t) packages image =
-    List.map (fun pkg ->
-      let terms =
-        list_revdeps t image pkg >>=
-        run_packages ?volume run_t image in
-      let l = Fmt.strf "revdeps:%s" pkg in
-      l, terms) packages |>
-    Term.wait_for_all
+    let l = Fmt.strf "revdeps:%s" (String.concat ~sep:", " packages) in
+    let terms =
+      List.fold_left
+        (fun acc pkg ->
+           acc >>= fun acc ->
+           list_revdeps t image pkg >|= fun pkgs ->
+           String.Set.union (String.Set.of_list pkgs) acc)
+        (Term.return String.Set.empty)
+        packages >|=
+      String.Set.elements >>=
+      run_packages ?volume run_t image
+    in
+    Term.wait_for_all [(l, terms)]
 
 end
 
