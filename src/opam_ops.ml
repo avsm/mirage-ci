@@ -55,13 +55,14 @@ module V1 = struct
     String.cuts ~empty:false ~sep:"\n"
 
   let run_package ?volume t image pkg =
-    let cmd = ["opam-ci-install";pkg] in
+    let cmd = ["opam";"config";"exec";"--";"opam-ci-install";pkg] in
+    let hum = Fmt.strf "opam install %s" pkg in
     let volumes =
       match volume with
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/archives")]
     in
-    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~cmd t in
+    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~hum ~cmd t in
     let b = Docker_run.branch ~volumes ~tag:image.Docker_build.sha256 ~cmd () in
     r, b
 
@@ -110,13 +111,14 @@ module V2 = struct
     | hd::tl -> Term.return (img, hd)
 
   let run_package ?volume t image pkg =
-    let cmd = ["opam-ci-install";pkg] in
+    let cmd = ["opam";"config";"exec";"--";"opam-ci-install";pkg] in
+    let hum = Fmt.strf "opam install %s" pkg in
     let volumes =
       match volume with
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
     in
-    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~cmd t in
+    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~hum ~cmd t in
     let b = Docker_run.branch ~volumes ~tag:image.Docker_build.sha256 ~cmd () in
     r, b
 
@@ -157,7 +159,7 @@ let build_package {build_t;_} image pkg =
   let open !Dockerfile in
   let dfile =
     from image.Docker_build.sha256 @@
-    run "opam-ci-install %s" pkg in
+    run "opam config exec -- opam-ci-install %s" pkg in
   let hum = Fmt.strf "opam install %s" pkg in
   Docker_build.run build_t ~hum dfile
 
@@ -226,7 +228,7 @@ let distro_base ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ver
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df
 
 let primary_ocaml_version = "4.05.0"
-let compiler_variants = ["4.02.3";"4.03.0";"4.04.2";"4.05.0";"4.05.0_flambda";"4.06.0";"4.06.0_flambda"]
+let compiler_variants = ["4.03.0";"4.04.2";"4.05.0";"4.06.0"]
 
 let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
@@ -234,7 +236,7 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
   in
   (* phase 1 *)
-  let debian_stable = build "debian-stable" primary_ocaml_version in
+  let debian_stable = build "debian-9" primary_ocaml_version in
   let phase1 = debian_stable >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
   let pkg_revdeps =
@@ -252,7 +254,7 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     (* phase 3 compiler variants *)
   let compiler_versions =
       List.map (fun oc ->
-        let t = build "debian-stable" oc in
+        let t = build "debian-9" oc in
         ("OCaml "^oc), t
       ) compiler_variants in
     let phase3 =
@@ -261,27 +263,27 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     (* phase 4 *)
     let alpine36 = build "alpine-3.6" primary_ocaml_version in
     let ubuntu1604 = build "ubuntu-16.04" primary_ocaml_version in
-    let ubuntu1704 = build "ubuntu-17.04" primary_ocaml_version in
+    let ubuntu1710 = build "ubuntu-17.10" primary_ocaml_version in
     let centos7 = build "centos-7" primary_ocaml_version in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       Term.wait_for_all [
         "Alpine 3.6", alpine36;
-        "Ubuntu 17.04", ubuntu1704;
+        "Ubuntu 17.10", ubuntu1710;
         "Ubuntu 16.04", ubuntu1604;
         "CentOS7", centos7 ] in
     (* phase 5 *)
     let debiant = build "debian-testing" primary_ocaml_version in
     let debianu = build "debian-unstable" primary_ocaml_version in
-    let opensuse = build "opensuse-42.2" primary_ocaml_version in
-    let fedora25 = build "fedora-25" primary_ocaml_version in
+    let opensuse = build "opensuse-42.3" primary_ocaml_version in
+    let fedora26 = build "fedora-26" primary_ocaml_version in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->
       Term.wait_for_all [
         "Debian Testing", debiant;
         "Debian Unstable", debianu;
 (*        "OpenSUSE 42.2", opensuse; *)
-        "Fedora 25", fedora25 ]
+        "Fedora 26", fedora26 ]
     in
     let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
     [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;

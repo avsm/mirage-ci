@@ -105,17 +105,7 @@ module V1 = struct
 
   (* TODO support multiple args *)
   let add_ci_script =
-    generate_sh "opam-ci-install" [
-(*
-      "if ! opam install $1 --dry-run; then";
-      "  echo Package unavailable, skipping.";
-      "  exit 0";
-      "fi";
-*)
-      "opam remote";
-      "opam list";
-      "echo opam depext -uivyj 2 $1";
-      "opam depext -uivyj 2 $1 || exit 1" ]
+    run "opam pin add -y opam-ci-scripts https://github.com/jpdeplaix/opam-ci-scripts.git"
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [
@@ -141,7 +131,7 @@ module V2 = struct
      let dir_name = Fmt.strf "/home/opam/remotes/%d" !remotes_ref in
      let repo_name = Fmt.strf "%a" Repo.pp repo in
      run "git clone https://github.com/%s.git %s" repo_name dir_name @@
-     run "cd %s && git checkout %s && opam admin upgrade" dir_name (Commit.hash commit) @@
+     run "cd %s && git checkout %s" dir_name (Commit.hash commit) @@
      run "opam remote add e%d %s" !remotes_ref dir_name
     ) rs |> fun remotes ->
     empty @@@ remotes
@@ -149,44 +139,26 @@ module V2 = struct
   let clone_src = V1.clone_src
   let add_local_pins = V1.add_local_pins
 
-  (* TODO support multiple args *)
   let add_ci_script =
-    generate_sh "opam-ci-install" [
-(*
-      "if ! opam install $1 --dry-run; then";
-      "  echo Package unavailable, skipping.";
-      "  exit 0";
-      "fi";
-*)
-      "opam remote";
-      "opam list";
-      "opam depext -u $1 || exit 1";
-      "env OPAMERRLOGLEN=0 opam install -yj2 $1 || exit 1" ]
+    run "opam pin add -y opam-ci-scripts https://github.com/jpdeplaix/opam-ci-scripts.git"
 
   let switch_local_remote =
-    run "opam admin upgrade" @@
     run "opam remote set-url default /home/opam/src"
    
   let add_local_remote =
-    run "opam admin upgrade" @@
     run "opam remote add local /home/opam/src"
     
   let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
     run "git checkout master" @@
     set_origin remote @@
-    run "git fetch origin %s:%s" branch dst_branch @@
-    run "git branch -D v2" @@
-    run "git checkout -b v2 %s" rev @@
-    run "opam admin upgrade" @@
-    run "git add ." @@
-    run "git commit -a -m 'upgrade format to opam2'"
+    run "git fetch origin %s:%s" branch dst_branch
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev" @@
+    from ~tag:(distro^"-ocaml-" ^ ocaml_version) "ocaml/opam2" @@
     add_cache_dir @@
-    run "opam pin add -n depext https://github.com/AltGr/opam-depext.git#opam-2-beta4" @@
-    run "opam install -y depext"
+    run "opam pin add -y opam-depext https://github.com/ocaml/opam-depext.git#2.0" @@
+    run "opam reinstall -yv opam-depext"
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [
