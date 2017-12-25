@@ -32,7 +32,7 @@ module Dockerfile_key = struct
     | 0 -> fn ()
     | r -> r
 
-  let compare {dockerfile;hum;tag} b =
+  let compare {dockerfile;hum;tag;_} b =
     Pervasives.compare dockerfile b.dockerfile ++ fun () ->
     String.compare hum b.hum ++ fun () ->
     Pervasives.compare tag b.tag
@@ -62,11 +62,6 @@ module Docker_builder = struct
   let title _t {dockerfile;hum;_} =
     digest_of_dockerfile dockerfile |> fun digest ->
     Fmt.strf "Building %s (%s)" hum (String.with_range ~len:6 digest)
-
-  let run_long_cmd ~switch t job_id fn =
-    Monitored_pool.use ~label:"docker build" t.pool job_id (fun () ->
-      Utils.with_timeout ~switch t.timeout fn
-    )
 
   let generate t ~switch ~log trans job_id {dockerfile;hum;tag;pull} =
     let digest = digest_of_dockerfile dockerfile in

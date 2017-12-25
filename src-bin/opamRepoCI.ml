@@ -23,6 +23,7 @@ module Builder = struct
   let volume_v2 = Fpath.v "opam2-archive"
 
   let packages_of_repo {Repo.user;repo} =
+    let user = Datakit_github.User.name user in
     match user, repo with
     | "ocaml","opam-repository" -> ["lwt";"async";"mirage";"datakit"]
     | "janestreet","opam-repository" -> ["jane-street-tests"]
@@ -54,7 +55,7 @@ module Builder = struct
        let base_tests = tests ~revdeps:false in
        let archives =
          match Target.repo target with
-         | {Repo.repo="opam-repository"; user="ocaml"} -> [archive_v1;archive_v2]
+         | {Repo.repo="opam-repository"; user} when Datakit_github.User.name user = "ocaml"-> [archive_v1;archive_v2]
          | _ -> [] in
        archives @ base_tests
     |`Ref _  -> []

@@ -5,7 +5,6 @@
   ---------------------------------------------------------------------------*)
 
 open Datakit_ci
-open Datakit_github
 
 type t
 (* [t] is the state of an Opam_bulk_build reporting instance *)

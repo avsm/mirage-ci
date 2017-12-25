@@ -22,7 +22,6 @@ type key = {
 
 module Docker_run_key = struct
  type t = key
- let compare = Pervasives.compare
 end
 
 let branch {img;cmd;volumes;_} =
@@ -45,7 +44,7 @@ module Docker_runner = struct
   let name t = "docker-run:" ^ t.label
   let title _t {hum;_} = hum
 
-  let generate t ~switch ~log trans job_id {img;cmd;volumes} =
+  let generate t ~switch ~log trans job_id {img;cmd;volumes;_} =
     let tee outputs s = List.iter (fun o -> o s) outputs in
     let vols = List.flatten (List.map (fun (h,c) -> ["-v";(Fmt.strf "%a:%a" Fpath.pp h Fpath.pp c)]) volumes) in
     let cmd = Array.of_list ("docker"::"run"::"--rm"::vols@img::cmd) in

@@ -100,6 +100,7 @@ module Opam_builder = struct
           let commit = Commit.hash (Target.head target) in
           let branch = branch_of_target target in
           let {Repo.user; repo} = repo_of_target target in
+          let user = Datakit_github.User.name user in
           match typ with
           | `Package -> (* Build and pin an OPAM package repository *)
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@

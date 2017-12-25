@@ -2,3 +2,6 @@ _build
 .*.swp
 .merlin
 *.install
+_opam
+cfg/
+secrets/

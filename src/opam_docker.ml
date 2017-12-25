@@ -31,7 +31,7 @@ module Remote = struct
 end
 
 let repo ~user ~repo ~branch =
-  Repo.v ~user ~repo, branch
+  Repo.v ~user:(Datakit_github.User.v user) ~repo, branch
 
 let ocaml_opam_repository = repo ~user:"ocaml" ~repo:"opam-repository" ~branch:"master"
 let mirage_opam_repository = repo ~user:"mirage" ~repo:"opam-repository" ~branch:"master"
@@ -54,8 +54,8 @@ end
 let set_origin =
   let open Dockerfile in
   function
-  | Some {Remote.repo;commit;_} when repo.Repo.user <> "ocaml" || repo.Repo.repo <> "opam-repository" ->
-     run "git remote set-url origin git://github.com/%s/%s" repo.Repo.user repo.Repo.repo
+  | Some {Remote.repo;commit;_} when (Datakit_github.User.name repo.Repo.user <> "ocaml") || repo.Repo.repo <> "opam-repository" ->
+     run "git remote set-url origin git://github.com/%s/%s" (Datakit_github.User.name repo.Repo.user) repo.Repo.repo
   | _ -> empty
 
 let generate_sh targ lines =
