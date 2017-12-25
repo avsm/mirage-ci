@@ -17,8 +17,6 @@ module Builder = struct
   let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:32 ()
   let opam_t = Opam_build.v ~logs ~label
-  let opam_bulk_t = Opam_bulk_build.v ~label ~logs
-  let opam_bulk_diff_t = Opam_bulk_build_diff.v ~label ~logs
   let volume_v1 = Fpath.v "opam-archive"
   let volume_v2 = Fpath.v "opam2-archive"
 

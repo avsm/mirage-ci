@@ -305,34 +305,6 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     ] @ (match revdeps with false -> [] | true ->
         [Term_utils.report ~order:2 ~label:(lf "Revdeps") phase2])
 
-let bulk_build ?volume ~remotes ~ocaml_version
-    ~distro ~opam_version ~opam_repo opam_t docker_t target =
-  let t =
-    let packages = ["ocamlfind";"camlp4";"ocamlbuild"] in
-    distro_base ~packages ~target ~distro ~ocaml_version ~remotes
-     ~typ:`Full_repo ~opam_version ~opam_repo opam_t docker_t >>= fun img ->
-    (match opam_version with
-    |`V1 ->
-       V1.list_all_packages docker_t img >>=
-       V1.run_packages ?volume docker_t.Docker_ops.run_t img
-    |`V2 ->
-       V2.list_all_packages docker_t img >>=
-       V2.run_packages ?volume docker_t.Docker_ops.run_t img) >>= fun res ->
-    let rec fn rs acc =
-      match rs with
-      |(package,t,log_branch)::tl ->
-        (Term.state t >>= fun t ->
-        let success = match t with Ok _ -> true |_ -> false in
-        let open Opam_bulk_build in
-        let ocaml_version = Ocaml_version.of_string ocaml_version in
-        let r = {ocaml_version;distro;package;success;log_branch} in
-        fn tl (r::acc))
-      |[] -> Term.return (List.rev acc)
-    in 
-    fn res []
-  in
-  t
-    
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 
