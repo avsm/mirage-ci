@@ -11,8 +11,8 @@ available: [ ocaml-version >= "4.03.0"]
 depends: [
   "jbuilder" {build & >="1.0+beta9"}
   "ppx_sexp_conv" {build}
-  "dockerfile-opam"
-  "datakit-ci"
+  "dockerfile-cmd"
+  "datakit-ci" {>="0.12.0"}
   "datakit-client" {>="0.11.0"}
   "fpath"
   "asetmap"
