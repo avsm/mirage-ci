@@ -43,6 +43,7 @@ module type V = sig
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
   val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
+  val merge_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
   val add_local_pins : string list -> Dockerfile.t
   val switch_local_remote : Dockerfile.t
   val add_local_remote : Dockerfile.t
@@ -93,6 +94,12 @@ module V1 = struct
     run "git fetch origin %s:cibranch" branch @@
     run "git checkout %s" commit
 
+  let merge_src ~user ~repo ~branch ~commit =
+    workdir "/home/opam/opam-repository" @@
+    run "git remote add local git://github.com/%s/%s" user repo @@
+    run "git fetch local %s" branch @@
+    run "git merge %s" commit
+
   let add_local_pins packages =
     empty @@@
     List.map (run "opam pin add -n %s /home/opam/src") packages
@@ -137,22 +144,12 @@ module V2 = struct
     empty @@@ remotes
 
   let clone_src = V1.clone_src
+  let merge_src = V1.merge_src
   let add_local_pins = V1.add_local_pins
-
-  let add_ci_script =
-    run "opam pin add -y opam-ci-scripts https://github.com/jpdeplaix/opam-ci-scripts.git"
-
-  let switch_local_remote =
-    run "opam remote set-url default /home/opam/src"
-   
-  let add_local_remote =
-    run "opam remote add local /home/opam/src"
-    
-  let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
-    workdir "/home/opam/opam-repository" @@
-    run "git checkout master" @@
-    set_origin remote @@
-    run "git fetch origin %s:%s" branch dst_branch
+  let add_ci_script = V1.add_ci_script
+  let switch_local_remote = V1.switch_local_remote
+  let add_local_remote = V1.add_local_remote
+  let set_opam_repo_rev = V1.set_opam_repo_rev
 
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"-ocaml-" ^ ocaml_version) "ocaml/opam2" @@

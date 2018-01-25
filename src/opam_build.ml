@@ -107,8 +107,8 @@ module Opam_builder = struct
               OD.clone_src ~user ~repo ~branch ~commit @@
               OD.add_local_pins packages
           | `Full_repo ->
-              OD.clone_src ~user ~repo ~branch ~commit @@
-              OD.switch_local_remote
+              OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
+              OD.merge_src ~user ~repo ~branch ~commit
           | `Repo ->
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
               OD.clone_src ~user ~repo ~branch ~commit @@
