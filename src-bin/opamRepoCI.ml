@@ -20,16 +20,8 @@ module Builder = struct
   let volume_v1 = Fpath.v "opam-archive"
   let volume_v2 = Fpath.v "opam2-archive"
 
-  let packages_of_repo {Repo.user;repo} =
-    let user = Datakit_github.User.name user in
-    match user, repo with
-    | "ocaml","opam-repository" -> ["lwt";"async";"mirage";"datakit"]
-    | "janestreet","opam-repository" -> ["jane-street-tests"]
-    | _ -> ["ocamlfind"]
-
   let repo_builder ~revdeps ~typ ~opam_version ?volume target =
-    let default = packages_of_repo (Target.repo target) in
-    let packages = Opam_ops.packages_from_diff ~default docker_t target in
+    let packages = Opam_ops.packages_from_diff ~default:[] docker_t target in
     let opam_repo = Opam_docker.ocaml_opam_repository in
     Opam_ops.run_phases ?volume ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
 
@@ -49,13 +41,6 @@ module Builder = struct
       Opam_ops.V2.build_archive ~volume:volume_v2 docker_t) >>= fun (_,res) ->
       Term.return res in
     match Target.id target with
-    |`Ref ["heads";"master"] ->
-       let base_tests = tests ~revdeps:false in
-       let archives =
-         match Target.repo target with
-         | {Repo.repo="opam-repository"; user} when Datakit_github.User.name user = "ocaml"-> [archive_v1;archive_v2]
-         | _ -> [] in
-       archives @ base_tests
     |`Ref _  -> []
     |`PR _ -> tests ~revdeps:true
 
