@@ -119,7 +119,7 @@ module Opam_builder = struct
       |`Ref rl -> Ref.pp ppf rl
     in
     let target = Fmt.(strf "%a" (option target_v_pp) target) in
-    let remotes = Fmt.(strf "%a" (list Remote.pp) remotes) in
+    let remotes = Fmt.(strf "%a" (list Remote.pp_for_compare) remotes) in
     let packages = String.concat ~sep:" " packages in
     let opam_version = match opam_version with `V1 -> "v1" | `V2 -> "v2" in
     let typ = match typ with `Package -> "package" |`Repo -> "repo" |`Full_repo -> "fullrepo" in

@@ -15,9 +15,9 @@ module Remote = struct
     full_remote: bool;
   }
 
-  let pp ppf {repo; commit; full_remote } =
-    Fmt.pf ppf "repo=%a commit=%a full_remote=%b"
-      Repo.pp repo Commit.pp commit full_remote
+  let pp_for_compare ppf {repo; commit = _; full_remote } =
+    Fmt.pf ppf "repo=%a full_remote=%b"
+      Repo.pp repo full_remote
 end
 
 let repo ~user ~repo ~branch =

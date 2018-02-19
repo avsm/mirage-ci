@@ -13,7 +13,7 @@ module Remote : sig
     commit: Commit.t;
     full_remote: bool;
   }
-  val pp : t Fmt.t
+  val pp_for_compare : t Fmt.t
 end
 
 val repo : user:string -> repo:string -> branch:string -> Repo.t * string
