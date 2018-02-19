@@ -13,7 +13,6 @@ module Remote : sig
     commit: Commit.t;
     full_remote: bool;
   }
-  val compare : t -> t -> int
   val pp : t Fmt.t
 end
 

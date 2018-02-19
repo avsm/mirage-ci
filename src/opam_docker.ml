@@ -15,16 +15,6 @@ module Remote = struct
     full_remote: bool;
   }
 
-  let ( ++ ) x fn =
-    match x with
-    | 0 -> fn ()
-    | r -> r
-
-  let compare {repo; commit; full_remote} b =
-    Repo.compare repo b.repo ++ fun () ->
-    Commit.compare commit b.commit ++ fun () ->
-    Pervasives.compare full_remote b.full_remote
-
   let pp ppf {repo; commit; full_remote } =
     Fmt.pf ppf "repo=%a commit=%a full_remote=%b"
       Repo.pp repo Commit.pp commit full_remote

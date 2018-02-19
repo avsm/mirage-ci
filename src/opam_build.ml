@@ -23,27 +23,7 @@ type key = {
 }
 
 module Opam_key = struct
-
   type t = key
-
-  let compare_target a b =
-    match a,b with
-    |Some a, Some b -> Target.compare_v a b
-    |_ -> Pervasives.compare a b
-
-  let ( ++ ) x fn =
-    match x with
-    | 0 -> fn ()
-    | r -> r
-
-  let compare {packages;target;distro;ocaml_version;remotes;typ;opam_version} b =
-    Pervasives.compare packages b.packages ++ fun () ->
-    compare_target target b.target ++ fun () ->
-    String.compare distro b.distro ++ fun () ->
-    String.compare ocaml_version b.ocaml_version ++ fun () ->
-    Pervasives.compare typ b.typ ++ fun () ->
-    Pervasives.compare opam_version b.opam_version ++ fun () ->
-    Pervasives.compare remotes b.remotes
 end
 
 module Opam_builder = struct
