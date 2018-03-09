@@ -215,9 +215,7 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df >>= fun img ->
-  match packages with
-  | [] -> Term.return ["base",img]
-  | _ -> build_packages docker_t img packages
+  build_packages docker_t img packages
 
 (** TODO Merge with distro_build *)
 let distro_base ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t =
