@@ -13,8 +13,7 @@ module Remote : sig
     commit: Commit.t;
     full_remote: bool;
   }
-  val compare : t -> t -> int
-  val pp : t Fmt.t
+  val pp_for_compare : t Fmt.t
 end
 
 val repo : user:string -> repo:string -> branch:string -> Repo.t * string
@@ -28,6 +27,7 @@ module type V = sig
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
   val base : ocaml_version:string -> distro:string -> Dockerfile.t
   val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
+  val merge_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
   val add_local_pins : string list -> Dockerfile.t
   val switch_local_remote : Dockerfile.t
   val add_local_remote : Dockerfile.t

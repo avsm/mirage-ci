@@ -23,27 +23,7 @@ type key = {
 }
 
 module Opam_key = struct
-
   type t = key
-
-  let compare_target a b =
-    match a,b with
-    |Some a, Some b -> Target.compare_v a b
-    |_ -> Pervasives.compare a b
-
-  let ( ++ ) x fn =
-    match x with
-    | 0 -> fn ()
-    | r -> r
-
-  let compare {packages;target;distro;ocaml_version;remotes;typ;opam_version} b =
-    Pervasives.compare packages b.packages ++ fun () ->
-    compare_target target b.target ++ fun () ->
-    String.compare distro b.distro ++ fun () ->
-    String.compare ocaml_version b.ocaml_version ++ fun () ->
-    Pervasives.compare typ b.typ ++ fun () ->
-    Pervasives.compare opam_version b.opam_version ++ fun () ->
-    Pervasives.compare remotes b.remotes
 end
 
 module Opam_builder = struct
@@ -107,8 +87,8 @@ module Opam_builder = struct
               OD.clone_src ~user ~repo ~branch ~commit @@
               OD.add_local_pins packages
           | `Full_repo ->
-              OD.clone_src ~user ~repo ~branch ~commit @@
-              OD.switch_local_remote
+              OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
+              OD.merge_src ~user ~repo ~branch ~commit
           | `Repo ->
               OD.set_opam_repo_rev ~remote:opam_repo_remote opam_repo_rev @@
               OD.clone_src ~user ~repo ~branch ~commit @@
@@ -139,7 +119,7 @@ module Opam_builder = struct
       |`Ref rl -> Ref.pp ppf rl
     in
     let target = Fmt.(strf "%a" (option target_v_pp) target) in
-    let remotes = Fmt.(strf "%a" (list Remote.pp) remotes) in
+    let remotes = Fmt.(strf "%a" (list Remote.pp_for_compare) remotes) in
     let packages = String.concat ~sep:" " packages in
     let opam_version = match opam_version with `V1 -> "v1" | `V2 -> "v2" in
     let typ = match typ with `Package -> "package" |`Repo -> "repo" |`Full_repo -> "fullrepo" in
