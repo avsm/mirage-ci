@@ -157,8 +157,7 @@ module V2 = struct
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"-ocaml-" ^ ocaml_version) "ocaml/opam2" @@
     add_cache_dir @@
-    run "opam pin add -y opam-depext https://github.com/ocaml/opam-depext.git#2.0" @@
-    run "opam reinstall -yv opam-depext"
+    run "opam install -yv opam-depext"
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [
