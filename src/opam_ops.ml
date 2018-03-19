@@ -189,7 +189,23 @@ let packages_from_diff ?(default=["ocamlfind"]) {build_t;run_t;_} target =
   match Target.id target with
   |`Ref _ -> Term.return default
   |`PR pr_num ->
-    let dfile = Dockerfile.(from ~tag:"opam-diff" "unikernel/mirage-ci") in
+    Term.target target >>= fun target ->
+    let commit_str = Commit.hash (Target.head target) in
+    let dfile =
+      let open Dockerfile in
+      from "alpine" @@
+      run "apk --no-cache add curl" @@
+      comment "" @@ (* NOTE: Avoids concat and thus to download curl everytime *)
+      run "echo '#!/bin/sh -eu' >> /root/opam-github-pr-diff" @@
+      run "echo 'REPO_SLUG=$1' >> /root/opam-github-pr-diff" @@
+      run "echo 'PRNUM=$2' >> /root/opam-github-pr-diff" @@
+      run "PR_COMMIT=%s" commit_str @@ (* NOTE: Force update for each new commit *)
+      run {|echo 'curl -sL https://github.com/$REPO_SLUG/pull/$PRNUM.diff | \
+                  sed -E -n -e '\''s,\+\+\+ b/packages/[^/]*/([^/]*)/.*,\1,p'\'' | \
+                  sort -u' >> /root/opam-github-pr-diff|} @@
+      run "chmod +x /root/opam-github-pr-diff" @@
+      entrypoint_exec ["/root/opam-github-pr-diff"]
+    in
     Docker_build.run build_t ~pull:true ~hum:"opam-diff image" dfile >>= fun img ->
     let cmd = [opam_slug; string_of_int pr_num] in
     Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
@@ -241,7 +257,7 @@ let compiler_variants = ["4.03.0";"4.04.2";"4.05.0";"4.06.0"]
 let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
     packages >>= fun packages ->
-    distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t 
+    distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
   in
   (* phase 1 *)
   let debian_stable = build "debian-9" primary_ocaml_version in
@@ -250,7 +266,7 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
   let pkg_revdeps =
     debian_stable >>= fun debian_stable ->
     let ts = List.map (fun (l,img) ->
-      let t = 
+      let t =
         packages >>= fun packages ->
         run_revdeps ?volume ~opam_version docker_t packages img in
       (Fmt.strf "revdep:%s" l), t
@@ -316,4 +332,3 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-
