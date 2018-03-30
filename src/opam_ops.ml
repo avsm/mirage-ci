@@ -261,8 +261,9 @@ let compiler_variants = ["4.03.0";"4.04.2";"4.05.0";"4.06.0"]
 
 let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build ~distro ~ocaml_version =
-    packages >>= fun packages ->
-    distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
+    packages >>= function
+    | [] -> Term.return []
+    | packages -> ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
   in
   (* phase 1 *)
   let debian_stable = build "debian-9" primary_ocaml_version in
