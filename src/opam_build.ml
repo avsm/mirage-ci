@@ -46,17 +46,17 @@ module Opam_builder = struct
 
   let name t = "opam:" ^ t.label
 
-  let title t {target;packages;distro;ocaml_version;remotes;opam_version} =
+  let title _t {packages;distro;ocaml_version;remotes;_} =
     let sremotes =
       String.concat ~sep:":" (
-       List.map (fun {Remote.repo;commit;full_remote} ->
+       List.map (fun {Remote.repo;commit;_} ->
          Fmt.strf "%a:%s" Repo.pp repo
           (String.with_range ~len:8 (Commit.hash commit))
        ) remotes)
       in
     Fmt.strf "Dockerfile %a %s/ocaml-%s/%s)" Fmt.(list ~sep:sp string) packages distro ocaml_version sremotes
 
-  let generate t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remotes;typ;opam_version} =
+  let generate _t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remotes;typ;opam_version} =
     let (module OD:Opam_docker.V) =
       match opam_version with
       | `V1 -> (module Opam_docker.V1)
@@ -111,7 +111,7 @@ module Opam_builder = struct
     output (Dockerfile.string_of_t dockerfile ^ "\n");
     Lwt.return  (Ok dockerfile)
 
-  let branch t {target;packages;distro;ocaml_version;remotes;opam_version;typ} =
+  let branch _t {target;packages;distro;ocaml_version;remotes;opam_version;typ} =
     (* TODO upstream *)
     let target_v_pp ppf t =
       match t with

@@ -7,12 +7,9 @@
 open !Astring
 
 open Datakit_ci
-open Datakit_github
 module DO = Docker_ops
 
 module Builder = struct
-
-  open Term.Infix
 
   let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:32 ()
@@ -30,16 +27,6 @@ module Builder = struct
       (repo_builder ~revdeps:false ~typ ~opam_version:`V1 ~volume:volume_v1 target) @
       (repo_builder ~revdeps ~typ ~opam_version:`V2 ~volume:volume_v2 target)
     in
-    let archive_v1 = "Archive v1.2", (
-      Term.target target >>= fun target ->
-      Commit.hash (Target.head target) |>
-      Opam_ops.V1.build_archive ~volume:volume_v1 docker_t) >>= fun (_,res) ->
-      Term.return res in
-    let archive_v2 = "Archive v2.0", (
-      Term.target target >>= fun target ->
-      Commit.hash (Target.head target) |>
-      Opam_ops.V2.build_archive ~volume:volume_v2 docker_t) >>= fun (_,res) ->
-      Term.return res in
     match Target.id target with
     |`Ref _  -> []
     |`PR _ -> tests ~revdeps:true

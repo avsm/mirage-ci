@@ -5,7 +5,6 @@
   ---------------------------------------------------------------------------*)
 
 open !Astring
-open Datakit_ci
 open Datakit_github
 
 module Remote = struct
@@ -45,7 +44,7 @@ end
 let set_origin =
   let open Dockerfile in
   function
-  | Some {Remote.repo;commit;_} when (Datakit_github.User.name repo.Repo.user <> "ocaml") || repo.Repo.repo <> "opam-repository" ->
+  | Some {Remote.repo;_} when (Datakit_github.User.name repo.Repo.user <> "ocaml") || repo.Repo.repo <> "opam-repository" ->
      run "git remote set-url origin git://github.com/%s/%s" (Datakit_github.User.name repo.Repo.user) repo.Repo.repo
   | _ -> empty
 

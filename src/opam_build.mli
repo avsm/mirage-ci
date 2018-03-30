@@ -6,7 +6,6 @@
 
 (** Datakit_ci module to generate a Docker from an OPAM PR *)
 open Datakit_ci
-open Datakit_github
 
 type t
 (* [t] is the state of an Opam_build instance *)

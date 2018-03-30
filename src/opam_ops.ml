@@ -40,16 +40,16 @@ module V1 = struct
     let cmd = ["opam-ci-archive"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t >>= fun build ->
     String.cuts ~sep:"\n" build |> List.rev |> function
-    | hd::tl -> Term.return (img, hd)
+    | hd::_ -> Term.return (img, hd)
     | [] -> Term.fail "No output from opam-admin make"
 
-  let list_all_packages {run_t} image =
+  let list_all_packages {run_t;_} image =
     let cmd = ["opam";"list";"-a";"-s";"--color=never"] in
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n" >|=
     List.map (fun s -> String.trim s)
 
-  let list_revdeps {run_t} image pkg =
+  let list_revdeps {run_t;_} image pkg =
     let cmd = ["opam";"list";"-s";"--depends-on";pkg] in
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n"
@@ -113,7 +113,7 @@ module V2 = struct
     String.cuts ~sep:"\n" log |>
     List.filter (String.is_prefix ~affix:"[ERROR] Got some errors while") |> function
     | [] -> Term.return (img, "Archives rebuilt")
-    | hd::tl -> Term.return (img, hd)
+    | hd::_ -> Term.return (img, hd)
 
   let run_package ?volume t image pkg =
     let cmd = ["opam";"config";"exec";"--";"opam-ci-install";pkg] in
@@ -135,14 +135,14 @@ module V2 = struct
     Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) >>= fun () ->
     Term.return r
 
-  let list_all_packages {run_t} image =
+  let list_all_packages {run_t;_} image =
     let cmd = ["opam";"list";"-a";"--columns=package";"--color=never";"--installable"] in
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n" >|=
     List.filter (fun s -> not (String.is_prefix ~affix:"#" s)) >|=
     List.map (fun s -> String.trim s)
 
-  let list_revdeps {run_t} image pkg =
+  let list_revdeps {run_t;_} image pkg =
     let cmd = ["opam";"list";"-s";"--color=never";"--depends-on";pkg;"--installable"] in
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n" >|=
@@ -238,32 +238,14 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df >>= fun img ->
   build_packages docker_t img packages
 
-(** TODO Merge with distro_build *)
-let distro_base ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t =
-  (* Get the commits for the mainline opam repo *)
-  let opam_repo, opam_repo_branch = opam_repo in
-  Term.branch_head opam_repo opam_repo_branch >>= fun opam_repo_commit ->
-  let opam_repo_remote = {Opam_docker.Remote.repo=opam_repo; commit=opam_repo_commit; full_remote=true} in
-  (* Get commits for any extra OPAM remotes *)
-  Term_utils.term_map_s (fun (repo,branch) ->
-    Term.branch_head repo branch >|= fun commit ->
-    {Opam_docker.Remote.repo; commit; full_remote=false}
-  ) remotes >>= fun remotes ->
-  let remotes = opam_repo_remote :: remotes in
-  Term.target target >>= fun target ->
-  Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
-  let df = Dockerfile.(df @@ run "opam depext -yuij 2 %s" (String.concat ~sep:" " packages)) in
-  let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
-  Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df
-
 let primary_ocaml_version = "4.05.0"
 let compiler_variants = ["4.03.0";"4.04.2";"4.05.0";"4.06.0"]
 
 let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
-  let build ~distro ~ocaml_version =
+  let build distro ocaml_version =
     packages >>= function
     | [] -> Term.return []
-    | packages -> ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
+    | packages -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
   in
   (* phase 1 *)
   let debian_stable = build "debian-9" primary_ocaml_version in
@@ -305,7 +287,7 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     (* phase 5 *)
     let debiant = build "debian-testing" primary_ocaml_version in
     let debianu = build "debian-unstable" primary_ocaml_version in
-    let opensuse = build "opensuse-42.3" primary_ocaml_version in
+    let _opensuse = build "opensuse-42.3" primary_ocaml_version in
     let fedora26 = build "fedora-26" primary_ocaml_version in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->

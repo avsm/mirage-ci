@@ -32,7 +32,7 @@ module Dockerfile_key = struct
     | 0 -> fn ()
     | r -> r
 
-  let compare {dockerfile;hum;tag;_} b =
+  let _compare {dockerfile;hum;tag;_} b =
     Pervasives.compare dockerfile b.dockerfile ++ fun () ->
     String.compare hum b.hum ++ fun () ->
     Pervasives.compare tag b.tag

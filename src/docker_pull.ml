@@ -28,7 +28,7 @@ module Docker_pull_key = struct
     | 0 -> fn ()
     | r -> r
 
-  let compare {slug; tag; time} b =
+  let _compare {slug; tag; time} b =
     Pervasives.compare slug b.slug ++ fun () ->
     Pervasives.compare tag b.tag ++ fun () ->
     Ptime.compare time b.time
@@ -57,7 +57,7 @@ module Docker_puller = struct
   let title _t {slug; tag; time} =
     Fmt.strf "Pulling %s (%a)" (pull_frag_of_t slug tag) Ptime.pp time
 
-  let generate t ~switch ~log trans job_id {slug; tag; _} =
+  let generate _t ~switch ~log trans _job_id {slug; tag; _} =
     let output = Live_log.write log in
     let cmd = Printf.sprintf "docker pull %s" (pull_frag_of_t slug tag) in
     Process.run ~switch ~output ("", [|"sh";"-c"; cmd|]) >>= fun () ->

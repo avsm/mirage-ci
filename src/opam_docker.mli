@@ -5,7 +5,6 @@
   ---------------------------------------------------------------------------*)
 
 open Datakit_github
-open Datakit_ci.Term
 
 module Remote : sig
   type t = {
