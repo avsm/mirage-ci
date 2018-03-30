@@ -73,7 +73,8 @@ module Docker_builder = struct
     let pull_cli = match pull with false -> "" | true -> " --pull" in
     let images_output = Buffer.create 1024 in
     Utils.with_tmpdir (fun tmp_dir ->
-      Dockerfile_gen.generate_dockerfile ~crunch:true (Fpath.v tmp_dir) dockerfile;
+      Rresult.R.error_msg_to_invalid_arg
+        (Dockerfile_gen.generate_dockerfile ~crunch:true (Fpath.v tmp_dir) dockerfile);
       Monitored_pool.use ~log ~label:"docker build" t.pool job_id (fun () ->
         Utils.with_timeout ~switch t.timeout (fun switch ->
           let cmd = Printf.sprintf "docker build%s %s%s%s --rm --force-rm - < %s/Dockerfile" network_cli label tag_cli pull_cli tmp_dir in

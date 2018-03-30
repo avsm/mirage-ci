@@ -1,8 +1,0 @@
-#!/bin/sh -eu
-
-REPO_SLUG=$1
-PRNUM=$2
-
-curl -sL https://github.com/$REPO_SLUG/pull/$PRNUM.diff | \
-  sed -E -n -e 's,\+\+\+ b/packages/[^/]*/([^/]*)/.*,\1,p' | \
-  sort -u
