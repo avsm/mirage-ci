@@ -79,7 +79,7 @@ module Docker_builder = struct
         Utils.with_timeout ~switch t.timeout (fun switch ->
           let cmd = Printf.sprintf "docker build%s %s%s%s --rm --force-rm - < %s/Dockerfile" network_cli label tag_cli pull_cli tmp_dir in
           Process.run ~switch ~output ("", [|"sh";"-c";cmd|]) >>= fun () ->
-          let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in 
+          let cmd = Printf.sprintf "docker images -q --digests --no-trunc --filter \"label=com.docker.datakit.digest=%s\" --filter \"label=com.docker.datakit.builton=%s\"" digest builton in
           Process.run ~switch ~output:(Buffer.add_string images_output) ("",[|"sh";"-c";cmd|]))
       )) >>= fun () ->
     let sha256 = Buffer.contents images_output |> String.trim in
@@ -105,10 +105,10 @@ module Docker_builder = struct
     Process.run ~output:(fun _ -> ()) ("",[|"sh";"-c";cmd|]) >|= fun () ->
     { tag; sha256; hum=String.trim (Cstruct.to_string hum) }
 end
- 
+
 module Docker_build_cache = Cache.Make(Docker_builder)
 
-type t = Docker_build_cache.t 
+type t = Docker_build_cache.t
 let v ?network ~logs ~label ~pool ~timeout () =
   Docker_build_cache.create ~logs { Docker_builder.label; pool; timeout; network }
 

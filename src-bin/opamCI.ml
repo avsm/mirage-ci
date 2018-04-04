@@ -18,14 +18,14 @@ module Builder = struct
   let opam_repo = Repo.v ~user:"ocaml" ~repo:"opam-repository"
 
   let pool = Monitored_pool.create "docker" 24
-  let label = "ocaml" 
+  let label = "ocaml"
   let docker_t = Docker_build.v ~logs ~label ~pool ~timeout:eight_hours ()
   let docker_run_t = Docker_run.v ~logs ~label ~pool ~timeout:eight_hours ()
   let opam_t = Opam_build.v ~logs ~label ~version:`V2
   let opam_bulk_t = Opam_bulk_build.v ~label ~logs
 
   let opam_build_all target =
-    let base_dfile ~distro ~ocaml_version ~git_rev = 
+    let base_dfile ~distro ~ocaml_version ~git_rev =
       let open Dockerfile in
       from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam-dev" @@
       Opam_docker.V2.set_opam_repo_rev git_rev @@
@@ -44,7 +44,7 @@ module Builder = struct
     in
     let bulk_build ~distro ~ocaml_version =
       Term_utils.after archive_build_v2 >>= fun () ->
-      Term.head target >>= fun h -> 
+      Term.head target >>= fun h ->
       let git_rev = Commit.hash h in
       Docker_build.run docker_t ~hum:(Fmt.strf "Base for %s (%s)" ocaml_version git_rev) (base_dfile ~distro ~ocaml_version ~git_rev)
       >>= fun img -> Opam_ops.V2.list_all_packages docker_run_t img
@@ -59,7 +59,7 @@ module Builder = struct
             let r = {ocaml_version;distro;package;success;log_branch} in
             fn tl (r::acc))
         |[] -> Term.return (List.rev acc)
-      in 
+      in
       fn results []
     in
     let order = ref 1 in

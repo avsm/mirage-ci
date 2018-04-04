@@ -15,7 +15,7 @@ type t = {
 }
 
 val v : logs:Live_log.manager -> label:string -> jobs:int -> ?timeout:float -> unit -> t
- 
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
 

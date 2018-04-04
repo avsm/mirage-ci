@@ -73,7 +73,7 @@ module Docker_puller = struct
 
   let branch _t {slug; tag; time} =
     let tag = match tag with None -> "latest" | Some t -> t in
-    Fmt.strf "docker-pull-%s-%s-%Ld" slug tag (Ptime.to_float_s time |> Int64.of_float) 
+    Fmt.strf "docker-pull-%s-%s-%Ld" slug tag (Ptime.to_float_s time |> Int64.of_float)
 
   let load _t tr {slug; tag; _ }  =
     let open Utils.Infix in
@@ -83,10 +83,10 @@ module Docker_puller = struct
     | img :: _ -> Lwt.return img
     | [] -> Lwt.fail_with "Pull failed"
 end
- 
+
 module Docker_pull_cache = Cache.Make(Docker_puller)
 
-type t = Docker_pull_cache.t 
+type t = Docker_pull_cache.t
 let v ~logs ~label () =
   Docker_pull_cache.create ~logs { Docker_puller.label }
 

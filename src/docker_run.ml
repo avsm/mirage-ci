@@ -54,7 +54,7 @@ module Docker_runner = struct
     let output = tee [ Buffer.add_string cmd_output; Live_log.write log ] in
     Monitored_pool.use ~log ~label:"docker run" t.pool job_id (fun () ->
       Utils.with_timeout ~switch t.timeout (fun switch ->
-        Process.run ~switch ~output ("",cmd) >|= fun () -> 
+        Process.run ~switch ~output ("",cmd) >|= fun () ->
         Buffer.contents cmd_output
       )
     ) >>= fun cmd_output ->
@@ -69,10 +69,10 @@ module Docker_runner = struct
     DK.Tree.read_file tr (Datakit_client.Path.of_string_exn "value/output") >>*= fun output ->
     Lwt.return (Cstruct.to_string output)
 end
- 
+
 module Docker_run_cache = Cache.Make(Docker_runner)
 
-type t = Docker_run_cache.t 
+type t = Docker_run_cache.t
 let v ~logs ~label ~pool ~timeout () =
   Docker_run_cache.create ~logs { Docker_runner.label; pool; timeout }
 
