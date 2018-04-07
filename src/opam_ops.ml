@@ -136,7 +136,7 @@ module V2 = struct
     List.map (fun s -> String.trim s)
 
   let list_revdeps {run_t;_} image pkg =
-    let cmd = ["opam";"list";"-s";"--color=never";"--depends-on";pkg;"--installable"; "--all-versions"] in
+    let cmd = ["opam";"list";"-s";"--color=never";"--depends-on";pkg;"--installable";"--all-versions";"--depopts"] in
     Docker_run.run ~tag:image.Docker_build.sha256 ~cmd run_t >|=
     String.cuts ~empty:false ~sep:"\n" >|=
     List.map (fun s -> String.trim s)
