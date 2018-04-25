@@ -17,15 +17,15 @@ module Builder = struct
   let volume_v1 = Fpath.v "opam-archive"
   let volume_v2 = Fpath.v "opam2-archive"
 
-  let repo_builder ~revdeps ~typ ~opam_version ?volume target =
+  let repo_builder ~mode ~typ ~opam_version ?volume target =
     let packages = Opam_ops.packages_from_diff ~default:[] docker_t target in
     let opam_repo = Opam_docker.ocaml_opam_repository in
-    Opam_ops.run_phases ?volume ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ?volume ~mode ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
 
   let run_phases typ target =
     let tests ~revdeps =
-      (repo_builder ~revdeps:false ~typ ~opam_version:`V1 ~volume:volume_v1 target) @
-      (repo_builder ~revdeps ~typ ~opam_version:`V2 ~volume:volume_v2 target)
+      (repo_builder ~mode:`Build_only ~typ ~opam_version:`V1 ~volume:volume_v1 target) @
+      (repo_builder ~mode:(`Revdeps revdeps) ~typ ~opam_version:`V2 ~volume:volume_v2 target)
     in
     match Target.id target with
     |`Ref _  -> []
@@ -65,4 +65,3 @@ let () =
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-

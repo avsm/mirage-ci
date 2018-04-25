@@ -23,7 +23,7 @@ val distro_build :
 
 val run_phases :
   ?volume: Fpath.t ->
-  revdeps: bool ->
+  mode: [`Build_only | `Revdeps of bool] ->
   packages:string list Datakit_ci.Term.t ->
   remotes:(Datakit_github.Repo.t * string) list ->
   typ:[ `Package | `Repo | `Full_repo ] ->
@@ -63,4 +63,3 @@ module V2 : V
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-

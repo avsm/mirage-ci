@@ -32,7 +32,7 @@ module Builder = struct
       |`Package -> packages_of_repo target
       |`Repo |`Full_repo -> Opam_ops.packages_from_diff docker_t target in
     let opam_repo = Opam_docker.mirage_opam_repository in
-    Opam_ops.run_phases ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ~mode:(`Revdeps revdeps) ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target
 
   let run_phases typ remotes target =
     let all_tests = repo_builder ~opam_version:`V1 ~typ ~remotes target in
@@ -85,4 +85,3 @@ let () =
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-
