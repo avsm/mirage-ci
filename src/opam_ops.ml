@@ -224,6 +224,10 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df >>= fun img ->
   build_packages docker_t img packages
 
+(* NOTE: Function used to temporarily disable brocken opam1 images *)
+let wait_for_all_opam ~opam_version v12 v2 =
+  Term.wait_for_all (v12 @ match opam_version with `V1 -> [] | `V2 -> v2)
+
 let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build distro ocaml_version =
     packages >>= function
@@ -261,11 +265,11 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     let centos7 = build "centos-7" Oversions.primary in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
-      Term.wait_for_all [
-        "Alpine 3.7", alpine37;
-        "Ubuntu 17.10", ubuntu1710;
-        "Ubuntu 16.04", ubuntu1604;
-        "CentOS 7", centos7 ] in
+      wait_for_all_opam ~opam_version
+        [ "Ubuntu 17.10", ubuntu1710;
+          "Ubuntu 16.04", ubuntu1604 ]
+        [ "Alpine 3.7", alpine37;
+          "CentOS 7", centos7 ] in
     (* phase 5 *)
     let debiant = build "debian-testing" Oversions.primary in
     let debianu = build "debian-unstable" Oversions.primary in
@@ -273,11 +277,11 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     let fedora27 = build "fedora-27" Oversions.primary in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->
-      Term.wait_for_all [
-        "Debian Testing", debiant;
-        "Debian Unstable", debianu;
-        "OpenSUSE 42.3", opensuse;
-        "Fedora 27", fedora27 ]
+      wait_for_all_opam ~opam_version
+        [ "Debian Testing", debiant;
+          "Debian Unstable", debianu;
+          "Fedora 27", fedora27 ]
+        [ "OpenSUSE 42.3", opensuse ]
     in
     let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
     [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;
