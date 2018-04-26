@@ -141,7 +141,7 @@ module V2 = struct
   let set_opam_repo_rev = V1.set_opam_repo_rev
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^"-"^Oversions.docker_opam2 ocaml_version) "ocaml/opam2" @@
+    from ~tag:(distro^"-"^Oversions.docker_opam2 ocaml_version) "ocaml/opam2-staging" @@
     add_cache_dir @@
     run "opam install -yv opam-depext"
 
