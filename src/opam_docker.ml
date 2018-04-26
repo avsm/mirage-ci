@@ -30,7 +30,7 @@ module type V = sig
   val add_cache_dir : Dockerfile.t
   val add_remotes : Remote.t list -> Dockerfile.t
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
-  val base : ocaml_version:string -> distro:string -> Dockerfile.t
+  val base : ocaml_version:Oversions.version -> distro:string -> Dockerfile.t
   val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
   val merge_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
   val add_local_pins : string list -> Dockerfile.t
@@ -69,7 +69,7 @@ module V1 = struct
     empty @@@ remotes
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^"_ocaml-"^ocaml_version) "ocaml/opam"
+    from ~tag:(distro^"_"^Oversions.docker_opam1 ocaml_version) "ocaml/opam"
 
   let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
@@ -141,7 +141,7 @@ module V2 = struct
   let set_opam_repo_rev = V1.set_opam_repo_rev
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^"-ocaml-" ^ ocaml_version) "ocaml/opam2" @@
+    from ~tag:(distro^"-"^Oversions.docker_opam2 ocaml_version) "ocaml/opam2" @@
     add_cache_dir @@
     run "opam install -yv opam-depext"
 
@@ -167,4 +167,3 @@ end
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-

@@ -24,7 +24,7 @@ module type V = sig
   val add_cache_dir : Dockerfile.t
   val add_remotes : Remote.t list -> Dockerfile.t
   val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
-  val base : ocaml_version:string -> distro:string -> Dockerfile.t
+  val base : ocaml_version:Oversions.version -> distro:string -> Dockerfile.t
   val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
   val merge_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
   val add_local_pins : string list -> Dockerfile.t
@@ -52,4 +52,3 @@ module V2 : V
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-
