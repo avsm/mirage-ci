@@ -143,7 +143,10 @@ module V2 = struct
   let base ~ocaml_version ~distro =
     from ~tag:(distro^"-"^Oversions.docker_opam2 ocaml_version) "ocaml/opam2-staging" @@
     add_cache_dir @@
-    run "opam install -yv opam-depext"
+    if String.equal distro "opensuse-42.3" then
+      run "opam pin add -yv opam-depext --dev"
+    else
+      run "opam install -yv opam-depext"
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [
