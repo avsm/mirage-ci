@@ -13,7 +13,7 @@ val distro_build :
   packages:string list ->
   target:Datakit_ci.Target.t ->
   distro:string ->
-  ocaml_version:string ->
+  ocaml_version:Oversions.version ->
   remotes:(Datakit_github.Repo.t * string) list ->
   typ:[ `Package | `Repo | `Full_repo ] ->
   opam_version:[ `V1 | `V2 ] ->
@@ -63,4 +63,3 @@ module V2 : V
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-

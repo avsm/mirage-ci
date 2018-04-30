@@ -15,7 +15,7 @@ module Log = (val Logs.src_log src : Logs.LOG)
 type key = {
   packages: string list; (* TODO merge this with Packages as only used there *)
   distro: string;
-  ocaml_version: string;
+  ocaml_version: Oversions.version;
   remotes: Remote.t list;
   target: Target.v option;
   typ: [`Package | `Repo | `Full_repo ];
@@ -54,7 +54,7 @@ module Opam_builder = struct
           (String.with_range ~len:8 (Commit.hash commit))
        ) remotes)
       in
-    Fmt.strf "Dockerfile %a %s/ocaml-%s/%s)" Fmt.(list ~sep:sp string) packages distro ocaml_version sremotes
+    Fmt.strf "Dockerfile %a %s/ocaml-%s/%s)" Fmt.(list ~sep:sp string) packages distro (Oversions.to_string ocaml_version) sremotes
 
   let generate _t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remotes;typ;opam_version} =
     let (module OD:Opam_docker.V) =
@@ -105,7 +105,7 @@ module Opam_builder = struct
     let open Utils.Infix in
     let open Datakit_client.Path.Infix in
     let output = Live_log.write log in
-    Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list ~sep:sp string)) packages distro ocaml_version;
+    Live_log.log log "Building Dockerfile for installing %a (%s %s)" (Fmt.(list ~sep:sp string)) packages distro (Oversions.to_string ocaml_version);
     let data = Dockerfile_conv.to_cstruct dockerfile in
     DK.Transaction.create_or_replace_file trans (Cache.Path.value / "Dockerfile.sexp") data >>*= fun () ->
     output (Dockerfile.string_of_t dockerfile ^ "\n");
@@ -123,7 +123,7 @@ module Opam_builder = struct
     let packages = String.concat ~sep:" " packages in
     let opam_version = match opam_version with `V1 -> "v1" | `V2 -> "v2" in
     let typ = match typ with `Package -> "package" |`Repo -> "repo" |`Full_repo -> "fullrepo" in
-    Fmt.strf "%s%s%s%s%s%s%s" target packages distro ocaml_version remotes opam_version typ |>
+    Fmt.strf "%s%s%s%s%s%s%s" target packages distro (Oversions.to_string_with_minor ocaml_version) remotes opam_version typ |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =
