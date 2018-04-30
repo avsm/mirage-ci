@@ -266,9 +266,9 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       wait_for_all_opam ~opam_version
-        [ "Ubuntu 17.10", ubuntu1710;
-          "Ubuntu 16.04", ubuntu1604 ]
+        [ "Ubuntu 16.04", ubuntu1604 ]
         [ "Alpine 3.7", alpine37;
+          "Ubuntu 17.10", ubuntu1710;
           "CentOS 7", centos7 ] in
     (* phase 5 *)
     let debiant = build "debian-testing" Oversions.primary in
