@@ -279,9 +279,9 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
       Term_utils.after phase4 >>= fun () ->
       wait_for_all_opam ~opam_version
         [ "Debian Testing", debiant;
-          "Debian Unstable", debianu;
-          "Fedora 27", fedora27 ]
-        [ "OpenSUSE 42.3", opensuse ]
+          "Debian Unstable", debianu ]
+        [ "Fedora 27", fedora27;
+          "OpenSUSE 42.3", opensuse ]
     in
     let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
     [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;
