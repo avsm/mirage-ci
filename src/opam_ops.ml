@@ -151,7 +151,7 @@ module V2 = struct
 
 end
 
-let build_package {build_t;_} image pkg =
+let build_package ~opam_version {build_t;_} image pkg =
   let base_pkg, version_pkg = match String.cut ~sep:"." pkg with
     | None -> failwith ("Couldn't extract the version number from "^pkg)
     | Some x -> x
@@ -159,14 +159,18 @@ let build_package {build_t;_} image pkg =
   let open !Dockerfile in
   let dfile =
     from image.Docker_build.sha256 @@
-    run "opam pin add -k version -yn %s %s" base_pkg version_pkg @@
+    begin match opam_version with
+    | `V1 -> empty (* opam1 pin fails when the package doesn't have any archive
+                      to download. (for instance with meta packages) *)
+    | `V2 -> run "opam pin add -k version -yn %s %s" base_pkg version_pkg
+    end @@
     run "opam config exec -- opam-ci-install %s" pkg in
   let hum = Fmt.strf "opam install %s" pkg in
   Docker_build.run build_t ~hum dfile
 
-let build_packages t image pkgs =
+let build_packages ~opam_version t image pkgs =
   let builds = List.map (fun pkg ->
-    let t = build_package t image pkg in
+    let t = build_package ~opam_version t image pkg in
     pkg, t
   ) pkgs in
   Term.wait_for_all builds >>= fun () ->
@@ -222,7 +226,7 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
   Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version opam_t >>= fun df ->
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df >>= fun img ->
-  build_packages docker_t img packages
+  build_packages ~opam_version docker_t img packages
 
 (* NOTE: Function used to temporarily disable brocken opam1 images *)
 let wait_for_all_opam ~opam_version v12 v2 =
