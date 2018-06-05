@@ -7,6 +7,7 @@
 open !Astring
 
 open Datakit_ci
+open Term.Infix
 module DO = Docker_ops
 
 module Builder = struct
@@ -17,10 +18,23 @@ module Builder = struct
   let volume_v1 = Fpath.v "opam-archive"
   let volume_v2 = Fpath.v "opam2-archive"
 
-  let repo_builder ~revdeps ~typ ~opam_version ?volume target =
+  let repo_builder ~build_filter ~revdeps ~typ ~opam_version ?volume target =
     let packages = Opam_ops.packages_from_diff ~default:[] docker_t target in
     let opam_repo = Opam_docker.ocaml_opam_repository in
-    Opam_ops.run_phases ?volume ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ?volume ~build_filter ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
+
+  let repo_builder ~revdeps ~typ ~opam_version ?volume target =
+    let build_filter =
+      match opam_version with
+      | `V1 ->
+          Term.return true
+      | `V2 ->
+          Term.target target >>= function
+          | `PR {Datakit_github.PR.base = "master"} -> Term.return false
+          | `PR _ | `Ref _ -> Term.return true
+    in
+    repo_builder ~build_filter ~revdeps ~typ ~opam_version ?volume target
+
 
   let run_phases typ target =
     let tests ~revdeps =
@@ -65,4 +79,3 @@ let () =
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   ---------------------------------------------------------------------------*)
-

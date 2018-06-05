@@ -232,11 +232,16 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_ve
 let wait_for_all_opam ~opam_version v12 v2 =
   Term.wait_for_all (v12 @ match opam_version with `V1 -> [] | `V2 -> v2)
 
-let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
+let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t target =
   let build distro ocaml_version =
-    packages >>= function
-    | [] -> Term.return []
-    | packages -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
+    build_filter >>= function
+    | true ->
+        packages >>= begin function
+        | [] -> Term.return []
+        | packages -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
+        end
+    | false ->
+        Term.return []
   in
   (* phase 1 *)
   let debian_stable = build "debian-9" Oversions.primary in
