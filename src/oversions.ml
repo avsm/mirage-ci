@@ -6,12 +6,12 @@ let recents = [("4.03.0","4.03");("4.04.2","4.04");("4.05.0","4.05");("4.06.0","
 let to_string (_, v) = v
 
 let docker_opam1 (v, _) =
-  "ocaml-"^v
+  "_ocaml-"^v
 
 let docker_opam2 v =
   if v == primary then
-    "ocaml"
+    ""
   else
-    "ocaml-"^snd v
+    "-ocaml-"^snd v
 
 let to_string_with_minor (v, _) = v
