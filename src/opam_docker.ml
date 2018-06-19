@@ -101,7 +101,7 @@ module V1 = struct
 
   (* TODO support multiple args *)
   let add_ci_script =
-    run "opam pin add -y opam-ci-scripts https://github.com/jpdeplaix/opam-ci-scripts.git"
+    run "opam pin add -y opam-ci-scripts https://github.com/kit-ty-kate/opam-ci-scripts.git"
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [
