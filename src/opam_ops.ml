@@ -263,29 +263,29 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
       Term_utils.after phase1 >>= fun () ->
       Term.wait_for_all compiler_versions in
     (* phase 4 *)
-    let alpine37 = build "alpine-3.7" Oversions.primary in
+    let alpine = build "alpine" Oversions.primary in
     let ubuntu1604 = build "ubuntu-16.04" Oversions.primary in
     let ubuntu_lts = build "ubuntu-lts" Oversions.primary in
-    let centos7 = build "centos-7" Oversions.primary in
+    let centos = build "centos" Oversions.primary in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       wait_for_all_opam ~opam_version
         [ "Ubuntu 16.04", ubuntu1604 ]
-        [ "Alpine 3.7", alpine37;
+        [ "Alpine", alpine;
           "Ubuntu LTS", ubuntu_lts;
-          "CentOS 7", centos7 ] in
+          "CentOS", centos ] in
     (* phase 5 *)
     let debiant = build "debian-testing" Oversions.primary in
     let debianu = build "debian-unstable" Oversions.primary in
-    let opensuse = build "opensuse-42.3" Oversions.primary in
-    let fedora27 = build "fedora-27" Oversions.primary in
+    let opensuse = build "opensuse" Oversions.primary in
+    let fedora = build "fedora" Oversions.primary in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->
       wait_for_all_opam ~opam_version
         [ "Debian Testing", debiant;
           "Debian Unstable", debianu ]
-        [ "Fedora 27", fedora27;
-          "OpenSUSE 42.3", opensuse ]
+        [ "Fedora", fedora;
+          "OpenSUSE", opensuse ]
     in
     let lf = Fmt.strf "%s %s" (match opam_version with |`V1 -> "V1.2" |`V2 -> "V2.0") in
     [   Term_utils.report ~order:1 ~label:(lf "Build") phase1;
