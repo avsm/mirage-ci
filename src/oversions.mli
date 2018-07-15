@@ -8,3 +8,5 @@ val docker_opam1 : version -> string
 val docker_opam2 : version -> string
 
 val to_string_with_minor : version -> string
+
+val exists : opam_version:[`V1 | `V2] -> version -> bool

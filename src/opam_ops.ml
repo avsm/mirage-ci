@@ -236,7 +236,8 @@ let run_phases ?volume ~revdeps ~packages ~remotes ~typ ~opam_version ~opam_repo
   let build distro ocaml_version =
     packages >>= function
     | [] -> Term.return []
-    | packages -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
+    | packages when Oversions.exists ~opam_version ocaml_version -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
+    | _ -> Term.return []
   in
   (* phase 1 *)
   let debian_stable = build "debian-9" Oversions.primary in
