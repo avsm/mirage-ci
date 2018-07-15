@@ -123,7 +123,7 @@ module Opam_builder = struct
     let packages = String.concat ~sep:" " packages in
     let opam_version = match opam_version with `V1 -> "v1" | `V2 -> "v2" in
     let typ = match typ with `Package -> "package" |`Repo -> "repo" |`Full_repo -> "fullrepo" in
-    Fmt.strf "%s%s%s%s%s%s%s" target packages distro (Oversions.to_string_with_minor ocaml_version) remotes opam_version typ |>
+    Fmt.strf "%s%s%s%s%s%s%s" target packages distro (Oversions.to_string ocaml_version) remotes opam_version typ |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
 
   let load _t tr _k =

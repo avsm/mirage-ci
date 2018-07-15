@@ -21,10 +21,6 @@ let docker_opam2 v =
   else
     "-ocaml-"^snd v
 
-let to_string_with_minor = function
-| (Some v, _) -> v
-| (None, _) -> assert false
-
 let exists ~opam_version v = match opam_version, v with
 | `V2, _ -> true
 | `V1, (Some _, _) -> true
