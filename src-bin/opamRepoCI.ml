@@ -27,11 +27,12 @@ module Builder = struct
     let build_filter =
       match opam_version with
       | `V1 ->
-          Term.return true
-      | `V2 ->
-          Term.target target >>= function
+          Term.target target >>= begin function
           | `PR {Datakit_github.PR.base = "2.0.0"} -> Term.return false
           | `PR _ | `Ref _ -> Term.return true
+          end
+      | `V2 ->
+          Term.return true
     in
     repo_builder ~build_filter ~revdeps ~typ ~opam_version ?volume target
 
