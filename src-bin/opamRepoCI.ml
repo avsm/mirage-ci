@@ -28,8 +28,8 @@ module Builder = struct
       match opam_version with
       | `V1 ->
           Term.target target >>= begin function
-          | `PR {Datakit_github.PR.base = "2.0.0"} -> Term.return false
-          | `PR _ | `Ref _ -> Term.return true
+          | `PR {Datakit_github.PR.base = "1.2"} -> Term.return true
+          | `PR _ | `Ref _ -> Term.return false
           end
       | `V2 ->
           Term.return true
