@@ -1,10 +1,7 @@
 type version
 
-val primary : version
-val recents : version list
+val primary : opam_version:[`V1 | `V2] -> version
+val recents : opam_version:[`V1 | `V2] -> version list
 
-val to_string : opam_version:[`V1 | `V2] -> version -> string
-val docker_opam1 : version -> string
-val docker_opam2 : version -> string
-
-val exists : opam_version:[`V1 | `V2] -> version -> bool
+val to_string : version -> string
+val docker : opam_version:[`V1 | `V2] -> version -> string

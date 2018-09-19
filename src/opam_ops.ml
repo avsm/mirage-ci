@@ -237,14 +237,15 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
     build_filter >>= function
     | true ->
         packages >>= begin function
-        | _::_ as packages when Oversions.exists ~opam_version ocaml_version -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
-        | [] | _::_ -> Term.return []
+        | _::_ as packages -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_version ~opam_repo opam_t docker_t
+        | [] -> Term.return []
         end
     | false ->
         Term.return []
   in
   (* phase 1 *)
-  let debian_stable = build "debian-9" Oversions.primary in
+  let primary_version = Oversions.primary ~opam_version in
+  let debian_stable = build "debian-9" primary_version in
   let phase1 = debian_stable >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
   let pkg_revdeps =
@@ -259,19 +260,19 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
       Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in
     (* phase 3 compiler variants *)
-  let compiler_versions () =
+  let compiler_versions =
       List.map (fun oc ->
         let t = build "debian-9" oc in
-        ("OCaml "^Oversions.to_string ~opam_version oc), t
-      ) Oversions.recents in
+        ("OCaml "^Oversions.to_string oc), t
+      ) (Oversions.recents ~opam_version) in
     let phase3 =
       Term_utils.after phase1 >>= fun () ->
-      Term.wait_for_all (compiler_versions ()) in
+      Term.wait_for_all compiler_versions in
     (* phase 4 *)
-    let alpine = build "alpine" Oversions.primary in
-    let ubuntu1604 = build "ubuntu-16.04" Oversions.primary in
-    let ubuntu_lts = build "ubuntu-lts" Oversions.primary in
-    let centos = build "centos" Oversions.primary in
+    let alpine = build "alpine" primary_version in
+    let ubuntu1604 = build "ubuntu-16.04" primary_version in
+    let ubuntu_lts = build "ubuntu-lts" primary_version in
+    let centos = build "centos" primary_version in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       wait_for_all_opam ~opam_version
@@ -280,10 +281,10 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
           "Ubuntu LTS", ubuntu_lts;
           "CentOS", centos ] in
     (* phase 5 *)
-    let debiant = build "debian-testing" Oversions.primary in
-    let debianu = build "debian-unstable" Oversions.primary in
-    let opensuse = build "opensuse" Oversions.primary in
-    let fedora = build "fedora" Oversions.primary in
+    let debiant = build "debian-testing" primary_version in
+    let debianu = build "debian-unstable" primary_version in
+    let opensuse = build "opensuse" primary_version in
+    let fedora = build "fedora" primary_version in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->
       wait_for_all_opam ~opam_version

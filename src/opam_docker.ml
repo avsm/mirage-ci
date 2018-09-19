@@ -69,7 +69,7 @@ module V1 = struct
     empty @@@ remotes
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^Oversions.docker_opam1 ocaml_version) "ocaml/opam"
+    from ~tag:(distro^Oversions.docker ~opam_version:`V1 ocaml_version) "ocaml/opam"
 
   let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
@@ -141,7 +141,7 @@ module V2 = struct
   let set_opam_repo_rev = V1.set_opam_repo_rev
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^Oversions.docker_opam2 ocaml_version) "ocaml/opam2" @@
+    from ~tag:(distro^Oversions.docker ~opam_version:`V2 ocaml_version) "ocaml/opam2" @@
     add_cache_dir @@
     run "opam install -yv opam-depext"
 
