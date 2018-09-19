@@ -259,14 +259,14 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
       Term_utils.after phase1 >>= fun () ->
       pkg_revdeps in
     (* phase 3 compiler variants *)
-  let compiler_versions =
+  let compiler_versions () =
       List.map (fun oc ->
         let t = build "debian-9" oc in
         ("OCaml "^Oversions.to_string ~opam_version oc), t
       ) Oversions.recents in
     let phase3 =
       Term_utils.after phase1 >>= fun () ->
-      Term.wait_for_all compiler_versions in
+      Term.wait_for_all (compiler_versions ()) in
     (* phase 4 *)
     let alpine = build "alpine" Oversions.primary in
     let ubuntu1604 = build "ubuntu-16.04" Oversions.primary in
