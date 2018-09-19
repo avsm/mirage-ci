@@ -262,7 +262,7 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
   let compiler_versions =
       List.map (fun oc ->
         let t = build "debian-9" oc in
-        ("OCaml "^Oversions.to_string oc), t
+        ("OCaml "^Oversions.to_string ~opam_version oc), t
       ) Oversions.recents in
     let phase3 =
       Term_utils.after phase1 >>= fun () ->
