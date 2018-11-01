@@ -15,36 +15,26 @@ module Builder = struct
   let label = "opamRepo"
   let docker_t = DO.v ~logs ~label ~jobs:32 ()
   let opam_t = Opam_build.v ~logs ~label
-  let volume_v1 = Fpath.v "opam-archive"
-  let volume_v2 = Fpath.v "opam2-archive"
+  let volume = Fpath.v "opam2-archive"
 
-  let repo_builder ~build_filter ~revdeps ~typ ~opam_version ?volume target =
+  let repo_builder ~build_filter ~revdeps ~typ target =
     let packages = Opam_ops.packages_from_diff ~default:[] docker_t target in
     let opam_repo = Opam_docker.ocaml_opam_repository in
-    Opam_ops.run_phases ?volume ~build_filter ~revdeps ~packages ~remotes:[] ~typ ~opam_version ~opam_repo opam_t docker_t target
+    Opam_ops.run_phases ~volume ~build_filter ~revdeps ~packages ~remotes:[] ~typ ~opam_repo opam_t docker_t target
 
-  let repo_builder ~revdeps ~typ ~opam_version ?volume target =
+  let repo_builder ~revdeps ~typ target =
     let build_filter =
-      match opam_version with
-      | `V1 ->
-          Term.target target >>= begin function
-          | `PR {Datakit_github.PR.base = "1.2"} -> Term.return true
-          | `PR _ | `Ref _ -> Term.return false
-          end
-      | `V2 ->
-          Term.return true
+      Term.target target >>= function
+      | `PR {Datakit_github.PR.base = "master"; _} -> Term.return true
+      | `PR _ | `Ref _ -> Term.return false
     in
-    repo_builder ~build_filter ~revdeps ~typ ~opam_version ?volume target
+    repo_builder ~build_filter ~revdeps ~typ target
 
 
   let run_phases typ target =
-    let tests ~revdeps =
-      (repo_builder ~revdeps:false ~typ ~opam_version:`V1 ~volume:volume_v1 target) @
-      (repo_builder ~revdeps ~typ ~opam_version:`V2 ~volume:volume_v2 target)
-    in
     match Target.id target with
     |`Ref _  -> []
-    |`PR _ -> tests ~revdeps:true
+    |`PR _ -> repo_builder ~revdeps:true ~typ target
 
   let tests = [
     Config.project ~id:"ocaml/opam-repository" (run_phases `Full_repo);

@@ -16,7 +16,7 @@ val v : logs:Live_log.manager -> label:string -> t
 
 val run : ?packages:string list -> ?target:Target.v -> distro:string ->
   ocaml_version:Oversions.version -> remotes:Opam_docker.Remote.t list -> typ:[`Package|`Repo|`Full_repo]
-  -> opam_version:[`V1|`V2] -> t -> Dockerfile.t Term.t
+  -> t -> Dockerfile.t Term.t
 (** [run t key] will result in a Datakit_ci {!Term.t} that will generate
   a {!Dockerfile.t} that can be built using a {!Docker_build.t} instance
   into a concrete image. *)

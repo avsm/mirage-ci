@@ -19,7 +19,6 @@ type key = {
   remotes: Remote.t list;
   target: Target.v option;
   typ: [`Package | `Repo | `Full_repo ];
-  opam_version: [`V1 | `V2];
 }
 
 module Opam_key = struct
@@ -56,11 +55,8 @@ module Opam_builder = struct
       in
     Fmt.strf "Dockerfile %a %s/ocaml-%s/%s)" Fmt.(list ~sep:sp string) packages distro (Oversions.to_string ocaml_version) sremotes
 
-  let generate _t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remotes;typ;opam_version} =
-    let (module OD:Opam_docker.V) =
-      match opam_version with
-      | `V1 -> (module Opam_docker.V1)
-      | `V2 -> (module Opam_docker.V2) in
+  let generate _t ~switch:_ ~log trans NoContext {target;packages;distro;ocaml_version;remotes;typ} =
+    let module OD = Opam_docker.Cmds in
     (* The remotes has a full list of all of the remotes, so we need to filter it to selectively
        select the mainline remote (for /home/opam/opam-repository) vs the extra ones *)
     let opam_repo_remotes, remotes = List.partition (fun {Remote.full_remote;_} -> full_remote) remotes in
@@ -111,7 +107,7 @@ module Opam_builder = struct
     output (Dockerfile.string_of_t dockerfile ^ "\n");
     Lwt.return  (Ok dockerfile)
 
-  let branch _t {target;packages;distro;ocaml_version;remotes;opam_version;typ} =
+  let branch _t {target;packages;distro;ocaml_version;remotes;typ} =
     (* TODO upstream *)
     let target_v_pp ppf t =
       match t with
@@ -121,7 +117,7 @@ module Opam_builder = struct
     let target = Fmt.(strf "%a" (option target_v_pp) target) in
     let remotes = Fmt.(strf "%a" (list Remote.pp_for_compare) remotes) in
     let packages = String.concat ~sep:" " packages in
-    let opam_version = match opam_version with `V1 -> "v1" | `V2 -> "v2" in
+    let opam_version = "v2" in (* NOTE: This string is still here to keep old cache and not recompute everything *)
     let typ = match typ with `Package -> "package" |`Repo -> "repo" |`Full_repo -> "fullrepo" in
     Fmt.strf "%s%s%s%s%s%s%s" target packages distro (Oversions.to_string ocaml_version) remotes opam_version typ |>
     Digest.string |> Digest.to_hex |> Fmt.strf "opam-build-%s"
@@ -140,8 +136,8 @@ type t = Opam_cache.t
 let v ~logs ~label =
   Opam_cache.create ~logs { Opam_builder.label }
 
-let run ?(packages=[]) ?target ~distro ~ocaml_version ~remotes ~typ ~opam_version t =
-  let key = { packages; distro; ocaml_version; remotes; target; typ; opam_version } in
+let run ?(packages=[]) ?target ~distro ~ocaml_version ~remotes ~typ t =
+  let key = { packages; distro; ocaml_version; remotes; target; typ } in
   Opam_cache.find t Opam_builder.NoContext key
 
 (*---------------------------------------------------------------------------

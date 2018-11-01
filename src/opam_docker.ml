@@ -26,20 +26,6 @@ let ocaml_opam_repository = repo ~user:"ocaml" ~repo:"opam-repository" ~branch:"
 let mirage_opam_repository = repo ~user:"mirage" ~repo:"opam-repository" ~branch:"master"
 let js_opam_repository = repo ~user:"janestreet" ~repo:"opam-repository" ~branch:"master"
 
-module type V = sig
-  val add_cache_dir : Dockerfile.t
-  val add_remotes : Remote.t list -> Dockerfile.t
-  val set_opam_repo_rev : ?remote:Remote.t -> ?branch:string -> ?dst_branch:string -> string -> Dockerfile.t
-  val base : ocaml_version:Oversions.version -> distro:string -> Dockerfile.t
-  val clone_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
-  val merge_src : user:string -> repo:string -> branch:string -> commit:string -> Dockerfile.t
-  val add_local_pins : string list -> Dockerfile.t
-  val switch_local_remote : Dockerfile.t
-  val add_local_remote : Dockerfile.t
-  val add_ci_script : Dockerfile.t
-  val add_archive_script : Dockerfile.t
-end
-
 (* If remote is not ocaml/opam-repository, we need to fetch its refs *)
 let set_origin =
   let open Dockerfile in
@@ -54,22 +40,23 @@ let generate_sh targ lines =
   String.concat ~sep:"\\n" |> fun lines ->
   run "printf '%s' > %s && chmod a+x %s && sudo mv %s /usr/bin/%s" lines targ targ targ targ
 
-module V1 = struct
+module Cmds = struct
   open !Dockerfile
 
-  let add_cache_dir = Dockerfile.empty
+  let add_cache_dir =
+    run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
 
   let add_remotes rs =
     let remotes_ref = ref 0 in
     List.map (fun {Remote.repo; commit; _} ->
      incr remotes_ref;
-     run "opam remote add e%d https://github.com/%s.git#%s"
-       !remotes_ref (Fmt.strf "%a" Repo.pp repo) (Commit.hash commit)
+     let dir_name = Fmt.strf "/home/opam/remotes/%d" !remotes_ref in
+     let repo_name = Fmt.strf "%a" Repo.pp repo in
+     run "git clone https://github.com/%s.git %s" repo_name dir_name @@
+     run "cd %s && git checkout %s" dir_name (Commit.hash commit) @@
+     run "opam remote add e%d %s" !remotes_ref dir_name
     ) rs |> fun remotes ->
     empty @@@ remotes
-
-  let base ~ocaml_version ~distro =
-    from ~tag:(distro^Oversions.docker ~opam_version:`V1 ocaml_version) "ocaml/opam"
 
   let set_opam_repo_rev ?remote ?(branch="master") ?(dst_branch="cibranch") rev =
     workdir "/home/opam/opam-repository" @@
@@ -103,45 +90,8 @@ module V1 = struct
   let add_ci_script =
     run "opam pin add -y opam-ci-scripts https://github.com/kit-ty-kate/opam-ci-scripts.git"
 
-  let add_archive_script =
-    generate_sh "opam-ci-archive" [
-      "sudo chown opam /home/opam/opam-repository/archives";
-      "opam admin make 2>&1 | tee /tmp/build.log";
-      "errs=`grep \"=== ERROR\" /tmp/build.log | awk -F\" \" \"{print \\$3}\" | xargs echo -n`";
-      "numerrs=`grep \"=== ERROR\" /tmp/build.log | awk -F\" \" \"{print \\$3}\" | wc -l`";
-      "num=`grep \"Packages to build\" /tmp/build.log | awk -F\" \" \"{print \\$4}\"`";
-      "echo $num total, $num failed: $errs"
-    ]
-end
-
-module V2 = struct
-  open !Dockerfile
-
-  let add_cache_dir =
-    run "echo 'archive-mirrors: [ \"file:///home/opam/opam-repository/cache\" ]' >> /home/opam/.opam/config"
-
-  let add_remotes rs =
-    let remotes_ref = ref 0 in
-    List.map (fun {Remote.repo; commit; _} ->
-     incr remotes_ref;
-     let dir_name = Fmt.strf "/home/opam/remotes/%d" !remotes_ref in
-     let repo_name = Fmt.strf "%a" Repo.pp repo in
-     run "git clone https://github.com/%s.git %s" repo_name dir_name @@
-     run "cd %s && git checkout %s" dir_name (Commit.hash commit) @@
-     run "opam remote add e%d %s" !remotes_ref dir_name
-    ) rs |> fun remotes ->
-    empty @@@ remotes
-
-  let clone_src = V1.clone_src
-  let merge_src = V1.merge_src
-  let add_local_pins = V1.add_local_pins
-  let add_ci_script = V1.add_ci_script
-  let switch_local_remote = V1.switch_local_remote
-  let add_local_remote = V1.add_local_remote
-  let set_opam_repo_rev = V1.set_opam_repo_rev
-
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^Oversions.docker ~opam_version:`V2 ocaml_version) "ocaml/opam2" @@
+    from ~tag:(distro^Oversions.docker ocaml_version) "ocaml/opam2" @@
     add_cache_dir @@
     run "opam install -yv opam-depext"
 
