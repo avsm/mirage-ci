@@ -100,7 +100,7 @@ module Opam_builder = struct
       OD.add_ci_script @@
       OD.add_remotes remotes @@
       target_d @@
-      run "opam update -uy"
+      run "opam update --strict -uy"
     in
     let open Utils.Infix in
     let open Datakit_client.Path.Infix in
