@@ -1,4 +1,4 @@
-FROM ocaml/opam:alpine
+FROM ocaml/opam2:alpine
 RUN cd /tmp && curl -OL https://get.docker.com/builds/Linux/x86_64/docker-17.05.0-ce.tgz && tar -zxvf docker-17.05.0-ce.tgz docker/docker && sudo mv docker/docker /usr/bin && rm -f docker-17.05.0-ce.tgz
 RUN cd /home/opam/opam-repository && git pull origin master && opam update -uy
 RUN opam depext -uivy -j 4 irmin-unix ezjsonm bos ptime fmt datakit-ci conf-libev 
