@@ -16,7 +16,7 @@ module Cmds = struct
 
   let build_archive ?volume {build_t;run_t;_} rev =
     let dfile =
-      from ~tag:"alpine_ocaml-4.03.0" "ocaml/opam-dev" @@
+      from ~tag:"alpine" "ocaml/opam2" @@
       OD.Cmds.add_archive_script @@
       OD.Cmds.set_opam_repo_rev rev @@
       OD.Cmds.add_cache_dir
@@ -36,7 +36,7 @@ module Cmds = struct
     | hd::_ -> Term.return (img, hd)
 
   let run_package ?volume t image pkg =
-    let cmd = ["opam";"config";"exec";"--";"opam-ci-install";pkg] in
+    let cmd = ["opam";"exec";"--";"opam-ci-install";pkg] in
     let hum = Fmt.strf "opam install %s" pkg in
     let volumes =
       match volume with
