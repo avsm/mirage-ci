@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 all:
-	jbuilder build
+	dune build
 
 clean:
 	rm -rf *.install _build

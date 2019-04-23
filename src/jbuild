@@ -1,9 +1,0 @@
-(jbuild_version 1)
-
-(library
- ((name        mirage_ci)
-  (public_name mirage-ci)
-  (wrapped     false)
-  (preprocess  (per_module ((pps (ppx_sexp_conv)) (opam_bulk_build))))
-  (libraries (dockerfile-cmd datakit-ci fpath asetmap bos cmdliner rresult sexplib tls ptime ocaml-version))
- ))
