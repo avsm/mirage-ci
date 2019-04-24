@@ -5,9 +5,7 @@ services:
 - docker
 env:
   global:
-  - PINS="mirage-ci:."
+  - PACKAGE="mirage-ci"
   matrix:
-  - PACKAGE="mirage-ci" OCAML_VERSION="4.03.0" DISTRO="debian-stable" EXTRA_ENV="OPAMSOLVERTIMEOUT=1200"
-  - PACKAGE="mirage-ci" OCAML_VERSION="4.04.2" DISTRO="ubuntu-16.04"
-  - PACKAGE="mirage-ci" OCAML_VERSION="4.05.0" DISTRO="alpine"
-  - PACKAGE="mirage-ci" OCAML_VERSION="4.06.0" DISTRO="alpine"
+  - OCAML_VERSION="4.06" DISTRO="alpine"
+  - OCAML_VERSION="4.07" DISTRO="alpine"
