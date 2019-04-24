@@ -30,9 +30,16 @@ module Builder = struct
     in
     repo_builder ~build_filter ~revdeps ~typ target
 
+  let archive_builder target =
+    let t =
+      Term.head target >>= fun {Datakit_github.Commit.hash;_} ->
+      Opam_ops.Cmds.build_archive ~volume:Fpath.(v "opam2-archive") docker_t hash >>= fun (_img, r) ->
+      Term.return r in
+    ["archive",t]
 
   let run_phases typ target =
     match Target.id target with
+    |`Ref ["heads";"master"]  -> archive_builder target
     |`Ref _  -> []
     |`PR _ -> repo_builder ~revdeps:true ~typ target
 

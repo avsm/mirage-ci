@@ -17,6 +17,7 @@ val distro_build :
   remotes:(Datakit_github.Repo.t * string) list ->
   typ:[ `Package | `Repo | `Full_repo ] ->
   opam_repo:Datakit_github.Repo.t * string ->
+  with_tests:bool ->
   Opam_build.t ->
   Docker_ops.t -> (string * Docker_build.image) list Datakit_ci.Term.t
 
@@ -34,8 +35,8 @@ val run_phases :
 
 module Cmds : sig
   val build_archive : ?volume:Fpath.t -> Docker_ops.t -> string -> (Docker_build.image * string) t
-  val run_package : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string -> string t * string
-  val run_packages : ?volume:Fpath.t -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
+  val run_package : ?volume:Fpath.t -> ?with_tests:bool -> Docker_run.t -> Docker_build.image -> string -> string t * string
+  val run_packages : ?volume:Fpath.t -> ?with_tests:bool -> Docker_run.t -> Docker_build.image -> string list -> (string * string Datakit_ci.Term.t * string) list t
   val list_all_packages : Docker_ops.t -> Docker_build.image -> string list t
   val list_revdeps : Docker_ops.t -> Docker_build.image -> string -> string list t
   val run_revdeps: ?volume:Fpath.t -> Docker_ops.t -> string -> Docker_build.image -> unit t

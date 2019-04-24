@@ -28,28 +28,29 @@ module Cmds = struct
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
     in
     Docker_build.run build_t ~pull:true ~hum dfile >>= fun img ->
-    let cmd = ["opam-ci-archive"] in
+    let cmd = ["opam";"admin";"cache";"/home/opam/opam-repository/cache"] in
     Docker_run.run ~volumes ~tag:img.Docker_build.sha256 ~cmd run_t >>= fun log ->
     String.cuts ~sep:"\n" log |>
     List.filter (String.is_prefix ~affix:"[ERROR] Got some errors while") |> function
     | [] -> Term.return (img, "Archives rebuilt")
     | hd::_ -> Term.return (img, hd)
 
-  let run_package ?volume t image pkg =
+  let run_package ?volume ?(with_tests=false) t image pkg =
     let cmd = ["opam";"exec";"--";"opam-ci-install";pkg] in
-    let hum = Fmt.strf "opam install %s" pkg in
+    let hum = Fmt.strf "opam install %s%s" (if with_tests then "-t " else "") pkg in
     let volumes =
       match volume with
       | None -> []
       | Some h -> [h,(Fpath.v "/home/opam/opam-repository/cache")]
     in
-    let r = Docker_run.run ~volumes ~tag:image.Docker_build.sha256 ~hum ~cmd t in
-    let b = Docker_run.branch ~volumes ~tag:image.Docker_build.sha256 ~cmd () in
+    let env = if with_tests then ["OPAMWITHTEST","true"] else [] in
+    let r = Docker_run.run ~volumes ~env ~tag:image.Docker_build.sha256 ~hum ~cmd t in
+    let b = Docker_run.branch ~volumes ~env ~tag:image.Docker_build.sha256 ~cmd () in
     r, b
 
-  let run_packages ?volume t image pkgs =
+  let run_packages ?volume ?with_tests t image pkgs =
     List.map (fun pkg ->
-      let t, branch = run_package ?volume t image pkg in
+      let t, branch = run_package ?volume ?with_tests t image pkg in
       pkg, t, branch
     ) pkgs |> fun r ->
     Term.wait_for_all (List.map (fun (a,b,_) -> (a,b)) r) >>= fun () ->
@@ -72,28 +73,38 @@ module Cmds = struct
     let l = Fmt.strf "revdeps:%s" pkg in
     let terms =
       list_revdeps t image pkg >>=
-      run_packages ?volume run_t image
+      run_packages ?volume ~with_tests:true run_t image
     in
     Term.wait_for_all [(l, terms)]
 
 end
 
-let build_package {build_t;_} image pkg =
+let build_package ?(with_tests=false) {build_t;_} image pkg =
   let base_pkg, version_pkg = match String.cut ~sep:"." pkg with
     | None -> failwith ("Couldn't extract the version number from "^pkg)
     | Some x -> x
   in
   let open !Dockerfile in
+  let tests_env =
+    match with_tests with
+    | true -> env ["OPAMWITHTEST","true"]
+    | false -> empty in
+
   let dfile =
     from image.Docker_build.sha256 @@
     run "opam pin add -k version -yn %s %s" base_pkg version_pkg @@
-    run "opam config exec -- opam-ci-install %s" pkg in
-  let hum = Fmt.strf "opam install %s" pkg in
+    tests_env @@
+    run "opam exec -- opam-ci-install %s" pkg in
+  let hum =
+    match with_tests with
+    | false -> Fmt.strf "opam install %s" pkg
+    | true -> Fmt.strf "opam install -t %s" pkg
+  in
   Docker_build.run build_t ~hum dfile
 
-let build_packages t image pkgs =
+let build_packages ?with_tests t image pkgs =
   let builds = List.map (fun pkg ->
-    let t = build_package t image pkg in
+    let t = build_package ?with_tests t image pkg in
     pkg, t
   ) pkgs in
   Term.wait_for_all builds >>= fun () ->
@@ -129,7 +140,7 @@ let packages_from_diff ?(default=["ocamlfind"]) {build_t;run_t;_} target =
     Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
-let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo opam_t docker_t =
+let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo ~with_tests opam_t docker_t =
   (* Get the commits for the mainline opam repo *)
   let opam_repo, opam_repo_branch = opam_repo in
   Term.branch_head opam_repo opam_repo_branch >>= fun opam_repo_commit ->
@@ -144,14 +155,14 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_re
   Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ opam_t >>= fun df ->
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df >>= fun img ->
-  build_packages docker_t img packages
+  build_packages ~with_tests docker_t img packages
 
 let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remotes ~typ ~opam_repo opam_t docker_t target =
-  let build distro ocaml_version =
+  let build ~with_tests distro ocaml_version =
     build_filter >>= function
     | true ->
         packages >>= begin fun packages -> match packages with
-        | _::_ -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo opam_t docker_t
+        | _::_ -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo ~with_tests opam_t docker_t
         | [] -> Term.return []
         end
     | false ->
@@ -159,7 +170,7 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
   in
   (* phase 1 *)
   let primary_version = Oversions.primary in
-  let debian_stable = build "debian-9" primary_version in
+  let debian_stable = build ~with_tests:false "debian-9" primary_version in
   let phase1 = debian_stable >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
   let pkg_revdeps =
@@ -175,17 +186,17 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
     (* phase 3 compiler variants *)
   let compiler_versions =
       List.map (fun oc ->
-        let t = build "debian-9" oc in
+        let t = build ~with_tests:true "debian-9" oc in
         ("OCaml "^Oversions.to_string oc), t
       ) Oversions.recents in
     let phase3 =
       Term_utils.after phase1 >>= fun () ->
       Term.wait_for_all compiler_versions in
     (* phase 4 *)
-    let alpine = build "alpine" primary_version in
-    let ubuntu1604 = build "ubuntu-16.04" primary_version in
-    let ubuntu_lts = build "ubuntu-lts" primary_version in
-    let centos = build "centos" primary_version in
+    let alpine = build ~with_tests:true "alpine" primary_version in
+    let ubuntu1604 = build ~with_tests:false "ubuntu-16.04" primary_version in
+    let ubuntu_lts = build ~with_tests:false "ubuntu-lts" primary_version in
+    let centos = build ~with_tests:false "centos" primary_version in
     let phase4 =
       Term_utils.after phase3 >>= fun () ->
       Term.wait_for_all
@@ -194,10 +205,10 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
           "Ubuntu LTS", ubuntu_lts;
           "CentOS", centos ] in
     (* phase 5 *)
-    let debiant = build "debian-testing" primary_version in
-    let debianu = build "debian-unstable" primary_version in
-    let opensuse = build "opensuse" primary_version in
-    let fedora = build "fedora" primary_version in
+    let debiant = build ~with_tests:false "debian-testing" primary_version in
+    let debianu = build ~with_tests:false "debian-unstable" primary_version in
+    let opensuse = build ~with_tests:false "opensuse" primary_version in
+    let fedora = build ~with_tests:false "fedora" primary_version in
     let phase5 =
       Term_utils.after phase4 >>= fun () ->
       Term.wait_for_all

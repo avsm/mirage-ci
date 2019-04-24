@@ -16,6 +16,7 @@ let ( / ) = Datakit_client.Path.Infix.( / )
 type key = {
   img: string;
   cmd: string list;
+  env: (string * string) list;
   volumes: (Fpath.t * Fpath.t) list;
   hum: string;
 }
@@ -24,8 +25,8 @@ module Docker_run_key = struct
  type t = key
 end
 
-let branch {img;cmd;volumes;_} =
-  Fmt.strf "%s:%s:%s" img (String.concat ~sep:" " cmd)
+let branch {img;cmd;env;volumes;_} =
+  Fmt.strf "%s:%s:%s:%s" img (String.concat ~sep:" " cmd) (String.concat ~sep:":" (List.map (fun (a,b) -> Fmt.strf "%s=%s" a b) env))
     (String.concat ~sep:" " (List.map (fun (a,b) -> Fmt.strf "%a:%a" Fpath.pp a Fpath.pp b) volumes)) |>
   Digest.string |> Digest.to_hex |> Fmt.strf "docker-run-%s"
 
@@ -44,10 +45,11 @@ module Docker_runner = struct
   let name t = "docker-run:" ^ t.label
   let title _t {hum;_} = hum
 
-  let generate t ~switch ~log trans job_id {img;cmd;volumes;_} =
+  let generate t ~switch ~log trans job_id {img;cmd;volumes;env;_} =
     let tee outputs s = List.iter (fun o -> o s) outputs in
     let vols = List.flatten (List.map (fun (h,c) -> ["-v";(Fmt.strf "%a:%a" Fpath.pp h Fpath.pp c)]) volumes) in
-    let cmd = Array.of_list ("docker"::"run"::"--rm"::vols@img::cmd) in
+    let envs = List.flatten (List.map (fun (k,v) -> ["-e"; Fmt.strf "%s=%s" k v]) env) in
+    let cmd = Array.of_list ("docker"::"run"::"--rm"::vols@envs@img::cmd) in
     let cmd_output = Buffer.create 1024 in
     Live_log.heading log "Using base image %s" img;
     Live_log.heading log "%s" (Fmt.(strf "%a" (array ~sep:sp string)) cmd);
@@ -76,14 +78,14 @@ type t = Docker_run_cache.t
 let v ~logs ~label ~pool ~timeout () =
   Docker_run_cache.create ~logs { Docker_runner.label; pool; timeout }
 
-let run ?(volumes=[]) ?hum ~tag ~cmd config =
+let run ?(volumes=[]) ?(env=[]) ?hum ~tag ~cmd config =
   let open! Term.Infix in
   let hum = match hum with None -> String.concat ~sep:" " cmd | Some h -> h in
   Term.job_id >>= fun job_id ->
-  Docker_run_cache.find config job_id {img=tag;hum;cmd;volumes}
+    Docker_run_cache.find config job_id {img=tag;hum;cmd;env;volumes}
 
-let branch ?(volumes=[]) ~tag ~cmd () =
-  branch {img=tag;hum="";cmd;volumes}
+let branch ?(volumes=[]) ?(env=[]) ~tag ~cmd () =
+  branch {img=tag;hum="";cmd;volumes;env}
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2016 Anil Madhavapeddy
