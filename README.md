@@ -13,12 +13,48 @@ Mirage-CI is distributed under the ISC license.
 
 ## Installation
 
-mirage-ci can be installed with `opam`:
+This project actually contains three CIs: `mirage-ci` for testing Mirage projects, `opam-ci` (purpose unclear),
+and `opam-repo-ci` for testing [opam-repository][].
 
-    opam install mirage-ci
+Start by generating a GitHub API token.
+If you're setting up a local test deployment, I suggest using a token for a GitHub user who does *not* have write permission on opam-repository.
+This is to avoid your test CI overwriting the status messages from the real CI.
 
-If you don't use `opam` consult the [`opam`](opam) file for build
-instructions.
+```
+opam depext -i github-unix tls
+git-jar make -s repo $USER datakit-github-cookie
+```
+
+Replace $USER with your GitHub user name.
+Note: `repo` indicates the token's scope, not a repository name.
+
+Move the resulting `~/.github/jar/datakit-github-cookie` file to `mirage-ci/data/bridge/datakit-github-cookie`.
+Note: this file MUST NOT have any "other" permissions set in its Unix permissions.
+Otherwise, the bridge will refuse to start, saying that the file doesn't exist.
+
+For local testing, you might also want to put the bridge into read-only mode, by changing its `-c` option to `-c "*:r"` in `docker-compose.yml`.
+
+To build and run `opam-repo-ci` locally (for testing):
+
+```
+env CI_BINARY=opam-repo-ci CI_DOMAIN_NAME=localhost docker-compose up
+```
+
+You should see a message like this in the logs:
+
+```
+ci_1       | 2019-05-20 09:30.34 APP [datakit-ci] >>> Configure the CI by visiting
+ci_1       |                                      https://localhost/auth/intro/47Q5fErg3aYhi0FjDWXDeX5cWMIJ1g5g
+```
+
+Visit the URL shown and set an admin password for yourself.
+
+The CI wants to write the `opam2-archive` Docker volume as UID 1000, but it gets created owned by root, so change that:
+
+```
+sudo chown 1000 /var/lib/docker/volumes/opam2-archive/_data
+```
+
 
 ## Documentation
 
@@ -37,3 +73,5 @@ Some examples live at:
 
 * <https://ci.ocaml.io>
 * <https://ci.mirage.io>
+
+[opam-repository]: https://github.com/ocaml/opam-repository
