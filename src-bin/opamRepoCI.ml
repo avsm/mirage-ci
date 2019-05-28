@@ -55,6 +55,7 @@ let web_config =
     ~name:"opam-repo-ci"
     ~can_read:ACL.(everyone)
     ~can_build:ACL.(everyone)
+    ~github_scopes_needed:[]
     ~state_repo:(Uri.of_string "https://github.com/ocaml/ocaml-ci.logs")
     ()
 
