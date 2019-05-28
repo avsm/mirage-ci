@@ -1,0 +1,61 @@
+version: '3.1'
+volumes:
+  session_data:
+  datakit-data:
+  ci-secrets:
+  ci-cache:
+  prometheus-data:
+  prometheus-config:
+  grafana-storage:
+secrets:
+  datakit-github-cookie-bactrian:
+    external: true
+services:
+  ci:
+    image: opam-repo-ci
+    entrypoint: /home/opam/.opam/4.07/bin/opam-repo-ci
+    command: --listen-prometheus=9090 --metadata-store tcp:datakit:5640 --web-ui=https://ci.ocaml.org/ --sessions-backend=redis://redis
+    ports:
+     - "443:8443"
+    volumes:
+      - 'ci-cache:/data/repos'
+      - 'ci-secrets:/secrets'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    depends_on:
+     - datakit
+     - redis
+  datakit:
+    image: datakit/db
+    user: "root"
+    volumes:
+      - datakit-data:/data
+    command: --git /data --listen-prometheus=9090 --listen-9p tcp://0.0.0.0:5640
+  bridge:
+    image: datakit/github-bridge:0.11.0
+    command: --listen-prometheus=9090 --datakit tcp://datakit:5640 -v -c "*:r,status[ci/datakit]:x,webhook:rw" --webhook http://ci.ocaml.org:8100
+    ports:
+     - "8100:8100"
+    secrets:
+      - source: 'datakit-github-cookie-bactrian'
+        target: 'datakit-github-cookie'
+        mode: 0600
+    depends_on:
+     - datakit
+  redis:
+    image: redis
+    command: redis-server --save 60 1
+    volumes:
+      - session_data:/data
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "prometheus-data:/prometheus"
+      - "prometheus-config:/etc/prometheus:ro"
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - "grafana-storage:/var/lib/grafana"
+    environment:
+      - "GF_SERVER_ROOT_URL=http://ci.ocaml.org"

@@ -28,17 +28,23 @@ git-jar make -s repo $USER datakit-github-cookie
 Replace $USER with your GitHub user name.
 Note: `repo` indicates the token's scope, not a repository name.
 
-Move the resulting `~/.github/jar/datakit-github-cookie` file to `mirage-ci/data/bridge/datakit-github-cookie`.
-Note: this file MUST NOT have any "other" permissions set in its Unix permissions.
-Otherwise, the bridge will refuse to start, saying that the file doesn't exist.
+- For docker-compose:
+  Move the resulting `~/.github/jar/datakit-github-cookie` file to `mirage-ci/data/bridge/datakit-github-cookie`.
+  Note: this file MUST NOT have any "other" permissions set in its Unix permissions.
+  Otherwise, the bridge will refuse to start, saying that the file doesn't exist.
+
+- For docker-stack:
+  `docker secret create datakit-github-cookie-bactrian - < ~/.github/jar/datakit-github-cookie`
 
 For local testing, you might also want to put the bridge into read-only mode, by changing its `-c` option to `-c "*:r"` in `docker-compose.yml`.
 
-To build and run `opam-repo-ci` locally (for testing):
+To build and run `opam-repo-ci` locally (for testing) with docker-compose:
 
 ```
 env CI_BINARY=opam-repo-ci CI_DOMAIN_NAME=localhost docker-compose up
 ```
+
+For production use, use Docker stack: `docker stack deploy opam-repo-ci -c opam-repo-ci.yml`
 
 You should see a message like this in the logs:
 
