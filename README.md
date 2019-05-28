@@ -13,7 +13,7 @@ Mirage-CI is distributed under the ISC license.
 
 ## Installation
 
-This project actually contains three CIs: `mirage-ci` for testing Mirage projects, `opam-ci` (purpose unclear),
+This project actually contains two CIs: `mirage-ci` for testing Mirage projects,
 and `opam-repo-ci` for testing [opam-repository][].
 
 Start by generating a GitHub API token.
