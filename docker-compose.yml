@@ -27,7 +27,7 @@ services:
   bridge:
     restart: always
     image: datakit/github-bridge:0.11.0
-    command: --datakit tcp://datakit:5640 -v -c "*:r,status[ci/datakit]:x,webhook:rw" --webhook http://${CI_DOMAIN_NAME}:8100
+    command: --datakit tcp://datakit:5640 -v -c "*:r" --webhook http://${CI_DOMAIN_NAME}:8100
     ports:
      - "8100:8100"
     volumes:
