@@ -94,6 +94,7 @@ let build_package ?(with_tests=false) {build_t;_} image pkg =
     from image.Docker_build.sha256 @@
     run "opam pin add -k version -yn %s %s" base_pkg version_pkg @@
     tests_env @@
+    env ["OPAMSOLVERTIMEOUT","500"] @@
     run "opam exec -- opam-ci-install %s" pkg in
   let hum =
     match with_tests with
