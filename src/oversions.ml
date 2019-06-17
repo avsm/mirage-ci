@@ -1,7 +1,7 @@
 type version = string
 
-let latest = "4.08"
-let primary = latest
+let default = "default" (* default OCaml version in the default docker images *)
+let primary = default
 let recents = [
   "4.03";
   "4.04";
@@ -14,6 +14,6 @@ let recents = [
 let to_string v = v
 
 let docker v =
-  if v == latest
+  if v == default
   then ""
   else "-ocaml-"^v
