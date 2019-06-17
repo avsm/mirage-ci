@@ -1,6 +1,6 @@
 type version = string
 
-let latest = "4.07"
+let latest = "4.08"
 let primary = latest
 let recents = [
   "4.03";
@@ -8,6 +8,7 @@ let recents = [
   "4.05";
   "4.06";
   "4.07";
+  "4.08";
 ]
 
 let to_string v = v
