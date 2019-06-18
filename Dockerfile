@@ -5,8 +5,9 @@ RUN opam depext -uivy irmin-unix ezjsonm bos ptime fmt datakit-ci conf-libev
 ADD --chown=1000 mirage-ci.opam /home/opam/src/
 RUN opam install --deps-only /home/opam/src/
 ADD --chown=1000 . /home/opam/src
-RUN opam pin add -n mirage-ci /home/opam/src
-RUN opam install -vy mirage-ci
+RUN opam pin add -n mirage-ci.dev /home/opam/src
+RUN opam pin add -n ocaml-version.dev git://github.com/avsm/ocaml-version.git
+RUN opam install -vy ocaml-version.dev mirage-ci.dev
 ENV CONDUIT_TLS=native
 ENV OCAMLRUNPARAM=b
 USER root
