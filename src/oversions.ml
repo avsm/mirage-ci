@@ -1,19 +1,7 @@
-type version = string
+type version = Ocaml_version.t
 
-let default = "default" (* default OCaml version in the default docker images *)
-let primary = default
-let recents = [
-  "4.03";
-  "4.04";
-  "4.05";
-  "4.06";
-  "4.07";
-  "4.08";
-]
+let primary = Ocaml_version.Releases.latest
+let recents = Ocaml_version.Releases.recent
 
-let to_string v = v
-
-let docker v =
-  if v == default
-  then ""
-  else "-ocaml-"^v
+let to_string v =
+  Ocaml_version.to_string (Ocaml_version.with_just_major_and_minor v)

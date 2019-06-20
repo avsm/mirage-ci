@@ -91,8 +91,9 @@ module Cmds = struct
     run "opam pin add -y opam-ci-scripts https://github.com/kit-ty-kate/opam-ci-scripts.git"
 
   let base ~ocaml_version ~distro =
-    from ~tag:(distro^Oversions.docker ocaml_version) "ocaml/opam2" @@
+    from ~tag:distro "ocaml/opam2" @@
     add_cache_dir @@
+    run "opam switch %s" (Oversions.to_string ocaml_version) @@
     run "opam install -yv opam-depext"
 
   let add_archive_script =
