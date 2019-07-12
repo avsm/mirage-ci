@@ -171,7 +171,7 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
   in
   (* phase 1 *)
   let primary_version = Oversions.primary in
-  let debian_stable = build ~with_tests:false "debian-9" primary_version in
+  let debian_stable = build ~with_tests:false "debian-stable" primary_version in
   let phase1 = debian_stable >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
   let pkg_revdeps =
@@ -187,7 +187,7 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
     (* phase 3 compiler variants *)
   let compiler_versions =
       List.map (fun oc ->
-        let t = build ~with_tests:true "debian-9" oc in
+        let t = build ~with_tests:true "debian-stable" oc in
         ("OCaml "^Oversions.to_string oc), t
       ) Oversions.recents in
     let phase3 =
