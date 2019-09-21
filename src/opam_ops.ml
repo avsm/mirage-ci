@@ -190,16 +190,13 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
         let t = build ~with_tests:true "debian-stable" oc in
         ("OCaml "^Oversions.to_string oc), t
       ) Oversions.recents in
-    let phase3 =
-      Term_utils.after phase1 >>= fun () ->
-      Term.wait_for_all compiler_versions in
+    let phase3 = Term.wait_for_all compiler_versions in
     (* phase 4 *)
     let alpine = build ~with_tests:true "alpine" primary_version in
     let ubuntu1604 = build ~with_tests:false "ubuntu-16.04" primary_version in
     let ubuntu_lts = build ~with_tests:false "ubuntu-lts" primary_version in
     let centos = build ~with_tests:false "centos" primary_version in
     let phase4 =
-      Term_utils.after phase3 >>= fun () ->
       Term.wait_for_all
         [ "Ubuntu 16.04", ubuntu1604;
           "Alpine", alpine;
@@ -211,7 +208,6 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
     let opensuse = build ~with_tests:false "opensuse" primary_version in
     let fedora = build ~with_tests:false "fedora" primary_version in
     let phase5 =
-      Term_utils.after phase4 >>= fun () ->
       Term.wait_for_all
         [ "Debian Testing", debiant;
           "Debian Unstable", debianu;
