@@ -9,18 +9,6 @@ open Datakit_ci.Term
 
 val packages_from_diff : ?default:string list -> Docker_ops.t -> Datakit_ci.Target.t -> string list t
 
-val distro_build :
-  packages:string list ->
-  target:Datakit_ci.Target.t ->
-  distro:string ->
-  ocaml_version:Oversions.version ->
-  remotes:(Datakit_github.Repo.t * string) list ->
-  typ:[ `Package | `Repo | `Full_repo ] ->
-  opam_repo:Datakit_github.Repo.t * string ->
-  with_tests:bool ->
-  Opam_build.t ->
-  Docker_ops.t -> (string * Docker_build.image) list Datakit_ci.Term.t
-
 val run_phases :
   ?volume: Fpath.t ->
   ?build_filter:bool Datakit_ci.Term.t ->

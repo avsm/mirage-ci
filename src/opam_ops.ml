@@ -108,11 +108,11 @@ let build_packages ?with_tests t image pkgs =
     let t = build_package ?with_tests t image pkg in
     pkg, t
   ) pkgs in
-  Term.wait_for_all builds >>= fun () ->
+  Term.catch (Term.wait_for_all builds) >|= fun _ -> (* Wait for all but do not fail yet *)
   let rec gather acc = function
     | [] -> Term.return (List.rev acc)
     | (l,hd)::tl -> hd >>= fun hd -> gather ((l,hd)::acc) tl in
-  gather [] builds
+  (builds, gather [] builds)
 
 let packages_from_diff ?(default=["ocamlfind"]) {build_t;run_t;_} target =
   let opam_slug = Fmt.strf "%a" Repo.pp (Target.repo target) in
@@ -141,7 +141,7 @@ let packages_from_diff ?(default=["ocamlfind"]) {build_t;run_t;_} target =
     Docker_run.run ~tag:img.Docker_build.sha256 ~cmd run_t >|=
     fun x -> String.cuts ~empty:false ~sep:"\n" x |> List.map String.trim
 
-let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo ~with_tests opam_t docker_t =
+let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo ~with_tests opam_t docker_t selector =
   (* Get the commits for the mainline opam repo *)
   let opam_repo, opam_repo_branch = opam_repo in
   Term.branch_head opam_repo opam_repo_branch >>= fun opam_repo_commit ->
@@ -156,35 +156,33 @@ let distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_re
   Opam_build.run ~packages ~target ~distro ~ocaml_version ~remotes ~typ opam_t >>= fun df ->
   let hum = Fmt.(strf "base image for opam install %a" (list ~sep:sp string) packages) in
   Docker_build.run docker_t.Docker_ops.build_t ~pull:true ~hum df >>= fun img ->
-  build_packages ~with_tests docker_t img packages
+  build_packages ~with_tests docker_t img packages >>= selector
 
 let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remotes ~typ ~opam_repo opam_t docker_t target =
-  let build ~with_tests distro ocaml_version =
+  let build_no_return ~with_tests distro ocaml_version selector =
     build_filter >>= function
     | true ->
         packages >>= begin fun packages -> match packages with
-        | _::_ -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo ~with_tests opam_t docker_t
-        | [] -> Term.return []
+        | _::_ -> distro_build ~packages ~target ~distro ~ocaml_version ~remotes ~typ ~opam_repo ~with_tests opam_t docker_t selector
+        | [] -> selector ([], Term.return [])
         end
     | false ->
-        Term.return []
+        selector ([], Term.return [])
   in
+  let build ~with_tests distro ocaml_version = build_no_return ~with_tests distro ocaml_version snd in
   (* phase 1 *)
   let primary_version = Oversions.primary in
-  let debian_stable = build ~with_tests:false "debian-stable" primary_version in
-  let phase1 = debian_stable >>= fun _ -> Term.return () in
+  let debian_stable = build_no_return ~with_tests:false "debian-stable" primary_version Term.return in
+  let phase1 = debian_stable >>= fun (_, t) -> t >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
-  let pkg_revdeps =
-    debian_stable >>= fun debian_stable ->
+  let phase2 =
+    debian_stable >>= fun (debian_stable, _) ->
     let ts = List.map (fun (l,img) ->
-      let t = Cmds.run_revdeps ?volume docker_t l img in
+      let t = img >>= Cmds.run_revdeps ?volume docker_t l in
       (Fmt.strf "revdep:%s" l), t
     ) debian_stable in
     Term.wait_for_all ts in
-  let phase2 =
-      Term_utils.after phase1 >>= fun () ->
-      pkg_revdeps in
-    (* phase 3 compiler variants *)
+  (* phase 3 compiler variants *)
   let compiler_versions =
       List.map (fun oc ->
         let t = build ~with_tests:true "debian-stable" oc in
