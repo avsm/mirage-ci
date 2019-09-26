@@ -79,34 +79,32 @@ module Cmds = struct
 
 end
 
-let build_package ?(with_tests=false) {build_t;_} image pkg =
+let build_package {build_t;_} image pkg =
   let base_pkg, version_pkg = match String.cut ~sep:"." pkg with
     | None -> failwith ("Couldn't extract the version number from "^pkg)
     | Some x -> x
   in
   let open !Dockerfile in
-  let tests_env =
-    match with_tests with
-    | true -> env ["OPAMWITHTEST","true"]
-    | false -> empty in
-
   let dfile =
     from image.Docker_build.sha256 @@
     run "opam pin add -k version -yn %s %s" base_pkg version_pkg @@
-    tests_env @@
     env ["OPAMSOLVERTIMEOUT","500"] @@
     run "opam exec -- opam-ci-install %s" pkg in
-  let hum =
-    match with_tests with
-    | false -> Fmt.strf "opam install %s" pkg
-    | true -> Fmt.strf "opam install -t %s" pkg
-  in
+  let hum = Fmt.strf "opam install %s" pkg in
   Docker_build.run build_t ~hum dfile
 
-let build_packages ?with_tests t image pkgs =
+let build_packages ~with_tests t image pkgs =
   let builds = List.map (fun pkg ->
-    let t = build_package ?with_tests t image pkg in
-    pkg, t
+    let image = build_package t image pkg in
+    let image =
+      if with_tests then
+        image >>= fun image ->
+        fst (Cmds.run_package ~with_tests:true t.run_t image pkg) >|= fun _ ->
+        image
+      else
+        image
+    in
+    pkg, image
   ) pkgs in
   Term.wait_for_all builds >>= fun () ->
   let rec gather acc = function
