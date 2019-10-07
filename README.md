@@ -61,6 +61,35 @@ The CI wants to write the `opam2-archive` Docker volume as UID 1000, but it gets
 sudo chown 1000 /var/lib/docker/volumes/opam2-archive/_data
 ```
 
+## Disk space
+
+Docker caches the builds, which uses up a lot of disk space.
+It is a good idea to prune Docker's cache daily with a crontab entry:
+
+```
+@daily docker system prune -f > /var/log/docker-prune.log 2>&1
+```
+
+Also, the datakit process writes data to a Git repository in a Docker volume.
+It never deletes anything, and never runs `git gc` either.
+Therefore, this will grow steadily (at roughly 6 GB / month).
+The data is not hugely valuable, so if you run out of disk space then:
+
+1. Shutdown the three services:
+   ```shell
+   docker service update --replicas=0 opam-repo-ci_bridge
+   docker service update --replicas=0 opam-repo-ci_ci
+   docker service update --replicas=0 opam-repo-ci_datakit
+   ```
+2. Delete (or move) `/var/lib/docker/volumes/opam-repo-ci_datakit-data/_data/.git`.
+3. Restart the three services:
+   ```shell
+   docker service update --replicas=1 opam-repo-ci_datakit
+   docker service update --replicas=1 opam-repo-ci_ci
+   docker service update --replicas=1 opam-repo-ci_bridge
+   ```
+
+The CI will rebuild each active PR at this point.
 
 ## Documentation
 
