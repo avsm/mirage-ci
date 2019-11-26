@@ -2,6 +2,7 @@ FROM ocaml/opam2:alpine
 RUN sudo apk add --update docker
 RUN cd /home/opam/opam-repository && git pull origin master && opam update -uy
 RUN opam switch 4.07
+ENV OPAMSOLVERTIMEOUT=600
 RUN opam depext -uivy irmin-unix ezjsonm bos ptime fmt datakit-ci conf-libev 
 ADD --chown=1000 mirage-ci.opam /home/opam/src/
 RUN opam install --deps-only /home/opam/src/
