@@ -94,7 +94,13 @@ module Cmds = struct
     from ~tag:distro "ocaml/opam2" @@
     add_cache_dir @@
     run "opam switch %s" (Oversions.to_string ocaml_version) @@
-    run "opam install -yv opam-depext"
+    run "opam install -yv opam-depext%s"
+      (if Oversions.older_than_4_06 ocaml_version
+       then " ocaml-secondary-compiler" (* NOTE: This is needed since dune 2.0.0
+                                           requires at least OCaml 4.06 OR this package
+                                           to build, which takes more than 4 minutes
+                                           to compile *)
+       else "")
 
   let add_archive_script =
     generate_sh "opam-ci-archive" [
