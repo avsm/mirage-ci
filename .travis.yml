@@ -1,6 +1,6 @@
 language: c
 install: wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-docker.sh
-script: bash -ex .travis-docker.sh
+script: travis_wait 30 bash -ex .travis-docker.sh
 services:
 - docker
 env:
