@@ -6,7 +6,7 @@ services:
 env:
   global:
   - PACKAGE="mirage-ci"
-  - EXTRA_ENV="OPAMSOLVERTIMEOUT=600"
+  - EXTRA_ENV="OPAMSOLVERTIMEOUT=6000"
   matrix:
   - OCAML_VERSION="4.06" DISTRO="alpine"
   - OCAML_VERSION="4.07" DISTRO="alpine"
