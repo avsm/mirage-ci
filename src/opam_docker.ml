@@ -94,6 +94,8 @@ module Cmds = struct
     from ~tag:distro "ocaml/opam2" @@
     add_cache_dir @@
     run "opam switch %s" (Oversions.to_string ocaml_version) @@
+    run "git pull origin master" @@
+    run "opam update" @@
     run "opam install -yv opam-depext%s"
       (if Oversions.older_than_4_06 ocaml_version
        then " ocaml-secondary-compiler" (* NOTE: This is needed since dune 2.0.0
