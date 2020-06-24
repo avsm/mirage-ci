@@ -91,7 +91,8 @@ module Cmds = struct
     run "opam pin add -y opam-ci-scripts https://github.com/kit-ty-kate/opam-ci-scripts.git"
 
   let base ~ocaml_version ~distro =
-    from ~tag:distro "ocaml/opam2" @@
+    from ~tag:(distro^"-ocaml-"^Oversions.to_string ocaml_version) "ocurrent/opam" @@
+    workdir "/home/opam/opam-repository" @@
     add_cache_dir @@
     run "opam switch %s" (Oversions.to_string ocaml_version) @@
     run "git pull origin master" @@
