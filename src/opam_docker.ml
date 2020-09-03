@@ -94,7 +94,6 @@ module Cmds = struct
     from ~tag:(distro^"-ocaml-"^Oversions.to_string ocaml_version) "ocurrent/opam" @@
     workdir "/home/opam/opam-repository" @@
     add_cache_dir @@
-    run "opam switch %s" (Oversions.to_string ocaml_version) @@
     run "git pull origin master" @@
     run "opam update" @@
     run "opam install -yv opam-depext%s"
