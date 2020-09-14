@@ -16,7 +16,8 @@ module Cmds = struct
 
   let build_archive ?volume {build_t;run_t;_} rev =
     let dfile =
-      from ~tag:"alpine" "ocaml/opam2" @@
+      from ~tag:"alpine" "ocurrent/opam" @@
+      workdir "/home/opam/opam-repository" @@
       OD.Cmds.add_archive_script @@
       OD.Cmds.set_opam_repo_rev rev @@
       OD.Cmds.add_cache_dir
@@ -170,7 +171,7 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
   let build ~with_tests distro ocaml_version = build_no_return ~with_tests distro ocaml_version snd in
   (* phase 1 *)
   let primary_version = Oversions.primary in
-  let debian_stable = build_no_return ~with_tests:false "debian-stable" primary_version Term.return in
+  let debian_stable = build_no_return ~with_tests:false "debian-10" primary_version Term.return in
   let phase1 = debian_stable >>= fun (_, t) -> t >>= fun _ -> Term.return () in
   (* phase 2 revdeps *)
   let phase2 =
@@ -183,15 +184,15 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
   (* phase 3 compiler variants *)
   let compiler_versions =
       List.map (fun oc ->
-        let t = build ~with_tests:true "debian-stable" oc in
+        let t = build ~with_tests:true "debian-10" oc in
         ("OCaml "^Oversions.to_string oc), t
       ) Oversions.recents in
     let phase3 = Term.wait_for_all compiler_versions in
     (* phase 4 *)
-    let alpine = build ~with_tests:true "alpine" primary_version in
+    let alpine = build ~with_tests:true "alpine-3.10" primary_version in
     let ubuntu1604 = build ~with_tests:false "ubuntu-16.04" primary_version in
-    let ubuntu_lts = build ~with_tests:false "ubuntu-lts" primary_version in
-    let centos = build ~with_tests:false "centos" primary_version in
+    let ubuntu_lts = build ~with_tests:false "ubuntu-18.04" primary_version in
+    let centos = build ~with_tests:false "centos-8" primary_version in
     let phase4 =
       Term.wait_for_all
         [ "Ubuntu 16.04", ubuntu1604;
@@ -201,8 +202,8 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
     (* phase 5 *)
     let debiant = build ~with_tests:false "debian-testing" primary_version in
     let debianu = build ~with_tests:false "debian-unstable" primary_version in
-    let opensuse = build ~with_tests:false "opensuse" primary_version in
-    let fedora = build ~with_tests:false "fedora" primary_version in
+    let opensuse = build ~with_tests:false "opensuse-15.1" primary_version in
+    let fedora = build ~with_tests:false "fedora-30" primary_version in
     let phase5 =
       Term.wait_for_all
         [ "Debian Testing", debiant;
