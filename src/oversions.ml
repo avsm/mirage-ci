@@ -1,7 +1,7 @@
 type version = Ocaml_version.t
 
 let primary = Ocaml_version.Releases.latest
-let recents = Ocaml_version.Releases.recent
+let recents = Ocaml_version.Releases.recent @ Ocaml_version.Releases.unreleased_betas
 
 let older_than_4_07 v =
   Ocaml_version.compare v Ocaml_version.Releases.v4_07_0 < 0
