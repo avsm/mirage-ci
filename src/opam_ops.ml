@@ -191,7 +191,7 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
     (* phase 4 *)
     let alpine = build ~with_tests:true "alpine-3.12" primary_version in
     let ubuntu_lts = build ~with_tests:false "ubuntu-18.04" primary_version in
-    let ubuntu2004 = build ~with_tests:false "ubuntu-20.04" primary_version in
+    let ubuntu_2004 = build ~with_tests:false "ubuntu-20.04" primary_version in
     let centos = build ~with_tests:false "centos-8" primary_version in
     let phase4 =
       Term.wait_for_all
