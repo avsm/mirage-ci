@@ -189,21 +189,21 @@ let run_phases ?volume ?(build_filter=Term.return true) ~revdeps ~packages ~remo
       ) Oversions.recents in
     let phase3 = Term.wait_for_all compiler_versions in
     (* phase 4 *)
-    let alpine = build ~with_tests:true "alpine-3.10" primary_version in
-    let ubuntu1604 = build ~with_tests:false "ubuntu-16.04" primary_version in
+    let alpine = build ~with_tests:true "alpine-3.12" primary_version in
     let ubuntu_lts = build ~with_tests:false "ubuntu-18.04" primary_version in
+    let ubuntu2004 = build ~with_tests:false "ubuntu-20.04" primary_version in
     let centos = build ~with_tests:false "centos-8" primary_version in
     let phase4 =
       Term.wait_for_all
-        [ "Ubuntu 16.04", ubuntu1604;
+        [ "Ubuntu LTS", ubuntu_lts;
           "Alpine", alpine;
-          "Ubuntu LTS", ubuntu_lts;
+          "Ubuntu 20.04", ubuntu_2004;
           "CentOS", centos ] in
     (* phase 5 *)
     let debiant = build ~with_tests:false "debian-testing" primary_version in
     let debianu = build ~with_tests:false "debian-unstable" primary_version in
-    let opensuse = build ~with_tests:false "opensuse-15.1" primary_version in
-    let fedora = build ~with_tests:false "fedora-30" primary_version in
+    let opensuse = build ~with_tests:false "opensuse-15.2" primary_version in
+    let fedora = build ~with_tests:false "fedora-32" primary_version in
     let phase5 =
       Term.wait_for_all
         [ "Debian Testing", debiant;
