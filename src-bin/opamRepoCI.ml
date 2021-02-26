@@ -10,6 +10,9 @@ open Datakit_ci
 open Term.Infix
 module DO = Docker_ops
 
+let () = Lwt.async_exception_hook := (fun exc ->
+  prerr_endline ("[Error caught in the Lwt.async_exception_hook]: "^Printexc.to_string exc))
+
 module Builder = struct
 
   let label = "opamRepo"

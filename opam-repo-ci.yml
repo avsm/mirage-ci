@@ -31,7 +31,7 @@ services:
       - datakit-data:/data
     command: --git /data --listen-prometheus=9090 --listen-9p tcp://0.0.0.0:5640
   bridge:
-    image: datakit/github-bridge:0.11.0
+    image: datakit/github-bridge
     command: --listen-prometheus=9090 --datakit tcp://datakit:5640 -v -c "*:r,status[ci/datakit]:x,webhook:rw" --webhook http://ci.ocaml.org:8100
     ports:
      - "8100:8100"
